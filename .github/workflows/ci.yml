@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    name: Neovim Plugin Tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        neovim_version: [stable, nightly]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies (ripgrep, eza)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ripgrep
+
+      - name: Setup Neovim
+        uses: rhysd/action-setup-vim@v1
+        with:
+          neovim: true
+          version: ${{ matrix.neovim_version }}
+
+      - name: Run automated test suite
+        run: |
+          chmod +x ./tests/run_all.sh
+          ./tests/run_all.sh

@@ -37,7 +37,7 @@ Key capabilities:
 Using lazy.nvim:
 >lua
     {
-      "soryescobar/fzf-lua-file-browser.nvim",
+      "SoryEscobar/fzf-lua-file-browser.nvim",
       dependencies = { "ibhagwan/fzf-lua" },
       config = function()
         require("fzf-lua-file-browser").setup({

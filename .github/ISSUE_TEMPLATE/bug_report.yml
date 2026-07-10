@@ -1,0 +1,49 @@
+name: Bug Report
+description: File a bug report for fzf-lua-file-browser.nvim
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting an issue! Please verify you are running recent versions of Neovim (`>= 0.9.0`) and `fzf-lua`.
+  - type: input
+    id: nvim-version
+    attributes:
+      label: Neovim Version
+      description: Run `nvim --version` and paste the output.
+      placeholder: "NVIM v0.10.0"
+    validations:
+      required: true
+  - type: input
+    id: fzf-lua-version
+    attributes:
+      label: fzf-lua Version / Commit
+      placeholder: "latest main"
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: A clear and concise description of what the bug is.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to Reproduce
+      description: Minimal steps to reproduce the issue.
+      placeholder: |
+        1. Open Neovim with minimal config
+        2. Press `<leader>fB`
+        3. Navigate to folder X...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What did you expect to happen instead?
+    validations:
+      required: true

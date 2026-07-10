@@ -1,5 +1,10 @@
 # fzf-lua-file-browser.nvim
 
+[![Neovim](https://img.shields.io/badge/Neovim-0.9+-blueviolet.svg?style=flat-square&logo=Neovim)](https://neovim.io)
+[![fzf-lua](https://img.shields.io/badge/Powered%20by-fzf--lua-00A98F.svg?style=flat-square)](https://github.com/ibhagwan/fzf-lua)
+[![CI](https://github.com/SoryEscobar/fzf-lua-file-browser.nvim/actions/workflows/ci.yml/badge.svg)](https://github.com/SoryEscobar/fzf-lua-file-browser.nvim/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
+
 `fzf-lua-file-browser.nvim` is a blazing fast, feature-rich file system explorer and manager for Neovim built **entirely on `fzf-lua`** — with zero dependency on Telescope or Plenary.
 
 It provides a 100% equivalent workflow to [`telescope-file-browser.nvim`](https://github.com/nvim-telescope/telescope-file-browser.nvim), including directory navigation, file/folder operations, Netrw hijacking, multi-selection batch actions, and **Neovim 0.10+ LSP rename integration (`workspace/didRenameFiles`)**.
@@ -50,7 +55,7 @@ Drop this spec into `lua/plugins/fzf-file-browser.lua`:
 ```lua
 return {
   {
-    "soryescobar/fzf-lua-file-browser.nvim", -- Or local path
+    "SoryEscobar/fzf-lua-file-browser.nvim", -- Or local path
     dependencies = { "ibhagwan/fzf-lua" },
     opts = {
       hijack_netrw = true,
@@ -88,7 +93,7 @@ return {
 
 ```lua
 {
-  "soryescobar/fzf-lua-file-browser.nvim",
+  "SoryEscobar/fzf-lua-file-browser.nvim",
   dependencies = { "ibhagwan/fzf-lua" },
   config = function()
     require("fzf-lua-file-browser").setup({

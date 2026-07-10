@@ -3,7 +3,7 @@
 
 return {
   {
-    "soryescobar/fzf-lua-file-browser.nvim", -- Or your local path / repo
+    "SoryEscobar/fzf-lua-file-browser.nvim", -- Or your local path / repo
     dependencies = { "ibhagwan/fzf-lua" },
     opts = {
       hijack_netrw = true,
