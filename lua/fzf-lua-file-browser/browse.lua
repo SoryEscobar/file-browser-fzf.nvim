@@ -127,6 +127,15 @@ function M.browse(opts)
 
   local global_config = package.loaded["fzf-lua-file-browser"] and package.loaded["fzf-lua-file-browser"].config or {}
   opts = vim.tbl_deep_extend("force", vim.deepcopy(global_config), opts or {})
+  if not opts.__browse_opts then
+    local pristine = vim.deepcopy(opts)
+    pristine.__browse_opts = nil
+    pristine.actions = nil
+    pristine.fzf_opts = nil
+    pristine.previewer = nil
+    pristine.keymap = nil
+    opts.__browse_opts = pristine
+  end
 
   local default_cwd = vim.fn.getcwd()
   if vim.fn.expand("%:p") ~= "" then

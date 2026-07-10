@@ -14,7 +14,18 @@ end
 local function reopen(opts, overrides)
   opts = opts or {}
   overrides = overrides or {}
-  local clean_opts = vim.tbl_deep_extend("force", vim.deepcopy(opts), overrides)
+  local base = opts.__browse_opts or opts
+  local clean_opts = vim.tbl_deep_extend("force", vim.deepcopy(base), overrides)
+  clean_opts.actions = overrides.actions
+  clean_opts.fzf_opts = overrides.fzf_opts
+  clean_opts.previewer = overrides.previewer
+  clean_opts.keymap = overrides.keymap
+  clean_opts.keymaps = overrides.keymaps or base.keymaps
+  clean_opts.mappings = overrides.mappings or base.mappings
+  clean_opts.__call_opts = nil
+  clean_opts._is_fzf_lua_picker = nil
+  clean_opts.fn_reload = nil
+  clean_opts.contents = nil
   clean_opts.winopts = vim.tbl_deep_extend("force", { reuse = true }, clean_opts.winopts or {})
   vim.schedule(function()
     require("fzf-lua-file-browser").browse(clean_opts)
