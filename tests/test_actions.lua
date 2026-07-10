@@ -80,4 +80,13 @@ assert_eq(true, last_browse_opts and last_browse_opts.gitignore, "toggle_all tog
 local parsed_stat_entry = utils.parse_entry("  my file with spaces.txt\t  1.5KB  2026-07-10 14:30", "/tmp")
 assert_eq("my file with spaces.txt", parsed_stat_entry.relpath, "parse_entry stripped tab-separated stats correctly")
 
+-- Test backspace action when prompt is not empty
+local bs_test_opts = { cwd = "/tmp", query = "hello" }
+actions.backspace({}, bs_test_opts)
+
+-- Test backspace action when prompt is empty (should trigger goto_parent_dir)
+local bs_empty_opts = { cwd = "/tmp/subdir", query = "" }
+actions.backspace({}, bs_empty_opts)
+
 print("=== ALL test_actions.lua PASSED ===")
+

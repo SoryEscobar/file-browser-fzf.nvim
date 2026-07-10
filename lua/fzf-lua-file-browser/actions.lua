@@ -7,8 +7,8 @@ local utils = require("fzf-lua-file-browser.utils")
 ---@return string
 local function get_query(opts)
   local fzf_ok, fzf = pcall(require, "fzf-lua")
-  local q = (fzf_ok and fzf.get_last_query and fzf.get_last_query()) or (opts and (opts.last_query or opts.__query)) or ""
-  return vim.trim(q)
+  local q = (fzf_ok and fzf.get_last_query and fzf.get_last_query()) or (opts and (opts.last_query or opts.__query or opts.query)) or ""
+  return q
 end
 
 local function reopen(opts, overrides)
@@ -53,7 +53,7 @@ function M.enter(selected, opts)
 
   local parsed = utils.parse_entry(selected[1], cwd)
   if parsed.is_dir then
-    reopen(opts, { cwd = parsed.path })
+    reopen(opts, { cwd = parsed.path, query = "" })
   else
     vim.cmd("edit " .. vim.fn.fnameescape(parsed.path))
   end
@@ -65,7 +65,7 @@ end
 function M.goto_parent_dir(_, opts)
   local cwd = opts.cwd or vim.fn.getcwd()
   local parent = utils.parent_dir(cwd)
-  reopen(opts, { cwd = parent })
+  reopen(opts, { cwd = parent, query = "" })
 end
 
 ---Go to home directory (~)
@@ -73,7 +73,7 @@ end
 ---@param opts table
 function M.goto_home_dir(_, opts)
   local home = vim.fn.expand("~")
-  reopen(opts, { cwd = home })
+  reopen(opts, { cwd = home, query = "" })
 end
 
 ---Go to current working directory (vim.fn.getcwd())
@@ -81,7 +81,7 @@ end
 ---@param opts table
 function M.goto_cwd(_, opts)
   local cwd = vim.fn.getcwd()
-  reopen(opts, { cwd = cwd })
+  reopen(opts, { cwd = cwd, query = "" })
 end
 
 ---Change Neovim's working directory (:cd)
@@ -388,13 +388,20 @@ function M.toggle_all(_, opts)
   end
 end
 
----Backspace action: if prompt is empty, go to parent dir
+---Backspace action: if prompt is empty, go to parent dir; otherwise delete backward character from prompt
 ---@param selected string[]
 ---@param opts table
 function M.backspace(selected, opts)
   local query = get_query(opts)
   if not query or query == "" then
     M.goto_parent_dir(selected, opts)
+  else
+    local chars = vim.fn.strchars(query)
+    local new_query = ""
+    if chars > 1 then
+      new_query = vim.fn.strcharpart(query, 0, chars - 1)
+    end
+    reopen(opts, { query = new_query })
   end
 end
 
