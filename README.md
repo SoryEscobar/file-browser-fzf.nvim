@@ -15,12 +15,16 @@ It provides a 100% equivalent workflow to [`telescope-file-browser.nvim`](https:
   - Jump to home (`<C-e>`) or current Neovim working directory (`<C-w>`).
   - Synchronize Neovim's `:cd` working directory (`<C-t>`).
 - **🛠️ Synchronized File System Operations**:
-  - **Create** (`<A-c>` or `<S-CR>`): Synchronously create files or directories (supports nested directories like `foo/bar/baz.lua`).
-  - **Rename** (`<A-r>`): Rename single or multi-selected items with automatic Neovim 0.10+ LSP rename notification (`workspace/didRenameFiles`).
-  - **Move** (`<A-m>`): Move selected items to any target directory.
-  - **Copy** (`<A-y>`): Recursive copy of selected files or directories.
-  - **Delete** (`<A-d>`): Confirm and delete single or multi-selected items.
+  - **Create** (`<C-a>` / `<A-c>` or `<S-CR>`): Interactive file & directory creation.
+    - **Direct Buffer Opening**: Creating a new file immediately opens it in your Neovim buffer ready for editing.
+    - **Nested Directory Creation**: Supporting full path creation on the fly (e.g. typing `custom_folder/sub/newfile.txt` automatically creates `custom_folder/sub/` if missing, creates `newfile.txt`, and opens it immediately).
+  - **Rename** (`<C-r>` / `<A-r>`): Rename single or multi-selected items with automatic Neovim 0.10+ LSP rename notification (`workspace/didRenameFiles`).
+  - **Move** (`<C-j>` / `<A-m>`): Move selected items to any target directory.
+  - **Copy** (`<C-y>` / `<A-y>`): Recursive copy of selected files or directories.
+  - **Delete** (`<C-x>` / `<A-d>`): Confirm and delete single or multi-selected items.
   - **Open** (`<C-o>`): Open files or folders with system default applications (`xdg-open` / macOS `open`).
+- **🎮 Built-in Shortcuts Cheat Sheet Modal**:
+  - Press `<C-k>` inside the browser to open an interactive floating cheat sheet listing all available keybinds with short descriptions.
 - **⚡ High-Performance Previewer**:
   - Syntax highlighted file previews via `fzf-lua`.
   - Smart folder previews (`eza`, `lsd`, `tree`, or fallback `ls -la`) when hovering over directories or `../`.
@@ -98,6 +102,8 @@ return {
 ---
 
 ## ⚙️ Configuration
+
+A complete sample configuration file is available at [`examples/config.lua`](file:///Users/soryescobar/sory/coding/2026/antigravity/projects/file-browser-fzf-lua/examples/config.lua).
 
 ```lua
 require("fzf-lua-file-browser").setup({
