@@ -10,9 +10,23 @@ function Previewer:new(o, opts, fzf_win)
   if obj == Previewer then
     obj = setmetatable({}, Previewer)
   end
+  o = vim.tbl_deep_extend("force", {
+    syntax = true,
+    syntax_limit_l = 0,
+    syntax_limit_b = 1024 * 1024 * 10,
+    treesitter = { enabled = true },
+  }, o or {})
   Previewer.super.new(obj, o, opts, fzf_win)
   obj.opts = opts or {}
   return obj
+end
+
+function Previewer:entry_to_file(entry_str)
+  local cwd = self.opts.cwd or vim.fn.getcwd()
+  local parsed = utils.parse_entry(entry_str, cwd)
+  return {
+    path = parsed.path,
+  }
 end
 
 function Previewer:parse_entry(entry_str, _cb)

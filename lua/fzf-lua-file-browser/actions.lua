@@ -393,6 +393,8 @@ M.backspace_or_parent = M.backspace
 function M.keymaps_help(_, opts)
   local items = {
     "ctrl-k           │ Show shortcuts & keybinds help list",
+    "ctrl-d / ctrl-u  │ Scroll preview pane down / up (page)",
+    "ctrl-f / alt-b   │ Scroll listings pane down / up (page)",
     "ctrl-a / alt-c   │ Create file/directory (creates parent dirs & opens file)",
     "ctrl-r / alt-r   │ Rename selected item(s)",
     "ctrl-y / alt-y   │ Copy selected item(s) to directory",

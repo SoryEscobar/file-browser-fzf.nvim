@@ -43,6 +43,13 @@ for _, res in ipairs(rec_results) do
 end
 assert_true(found_nested, "recursive scan (depth = false) should find nested file b_folder/nested.txt")
 
+-- Test previewer entry_to_file path extraction
+local previewer = require("fzf-lua-file-browser.previewer")
+local prev_obj = previewer.Previewer:new({}, { cwd = tmpdir })
+local sample_entry = "  test.json"
+local extracted = prev_obj:entry_to_file(sample_entry)
+assert_true(extracted.path == utils.normalize_path(utils.join_paths(tmpdir, "test.json")), "previewer entry_to_file should extract clean path from formatted entry")
+
 vim.fn.delete(tmpdir, "rf")
 
 print("=== ALL test_finder.lua PASSED ===")

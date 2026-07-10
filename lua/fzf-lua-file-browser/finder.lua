@@ -39,24 +39,43 @@ local function format_date(sec)
   return os.date("%Y-%m-%d %H:%M", sec) or ""
 end
 
----Get icon and highlight for entry
+---Get icon and highlight function for entry
 ---@param name string
 ---@param is_dir boolean
 ---@param opts table
----@return string icon, string? ansi_color
+---@return string icon, function? color_fn
 local function get_icon(name, is_dir, opts)
-  local devicons_ok, devicons = pcall(require, "nvim-web-devicons")
+  local ok_fzf_dev, fzf_dev = pcall(require, "fzf-lua.devicons")
+  local ok_fzf_utils, fzf_utils = pcall(require, "fzf-lua.utils")
+
   if is_dir then
-    if devicons_ok and devicons.get_icon then
-      local icon, color = devicons.get_icon(name, nil, { default = false })
-      return icon or "", ansi.blue
-    end
     return "", ansi.blue
   end
 
+  if ok_fzf_dev and fzf_dev.get_devicon then
+    fzf_dev.load()
+    local icon, hl = fzf_dev.get_devicon(name)
+    if icon and #icon > 0 then
+      if hl and ok_fzf_utils then
+        local color_fn = function(s)
+          return fzf_utils.ansi_from_rgb(hl, s)
+        end
+        return icon, color_fn
+      end
+      return icon, nil
+    end
+  end
+
+  local devicons_ok, devicons = pcall(require, "nvim-web-devicons")
   if devicons_ok and devicons.get_icon then
     local ext = name:match("^.+%.([^.]+)$") or ""
-    local icon, _ = devicons.get_icon(name, ext, { default = true })
+    local icon, color = devicons.get_icon(name, ext, { default = true })
+    if icon and color and ok_fzf_utils then
+      local color_fn = function(s)
+        return fzf_utils.ansi_from_rgb(color, s)
+      end
+      return icon, color_fn
+    end
     return icon or "", nil
   end
 
@@ -73,7 +92,14 @@ local function format_entry(name, is_dir, stat, opts)
   local display_name = is_dir and (name .. "/") or name
   local icon, color_fn = get_icon(name, is_dir, opts)
   local colored_icon = color_fn and color_fn(icon) or icon
-  local colored_name = is_dir and ansi.blue(display_name) or display_name
+  local colored_name
+  if is_dir then
+    colored_name = ansi.blue(display_name)
+  elseif opts.color_filenames and color_fn then
+    colored_name = color_fn(display_name)
+  else
+    colored_name = display_name
+  end
 
   local stat_str = ""
   if opts.display_stat then

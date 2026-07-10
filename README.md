@@ -137,6 +137,8 @@ require("fzf-lua-file-browser").setup({
 | Keybind | Action | Description |
 |---|---|---|
 | `<C-k>` | `keymaps_help` | **Open shortcuts & keybinds cheat sheet modal** |
+| `<C-d>` / `<C-u>` | `preview-page-down` / `preview-page-up` | **Scroll right preview panel down / up (Page)** |
+| `<C-f>` / `<A-b>` | `page-down` / `page-up` | **Scroll left listings panel down / up (Page)** |
 | `<CR>` / `<Right>` | `enter` | Enter directory (`cwd = dir`) or edit file |
 | `<Left>` / `<BS>` | `goto_parent_dir` | Navigate to parent directory (`../`) |
 | `<C-a>` / `<A-c>` | `create` | Create file/dir (supports nested path creation `dir/sub/file.txt` & opens immediately in buffer) |

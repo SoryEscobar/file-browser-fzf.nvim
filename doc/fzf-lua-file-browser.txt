@@ -76,6 +76,8 @@ Default keymaps inside the browser picker:
 Keybind          Action                     Description
 ------------------------------------------------------------------------------
 <C-k>            keymaps_help               Open shortcuts cheat sheet modal
+<C-d> / <C-u>    preview-page-down/up       Scroll preview right panel down/up
+<C-f> / <A-b>    page-down/up               Scroll listings left panel down/up
 <CR> / <Right>   enter                      Enter directory or edit file
 <Left> / <BS>    goto_parent_dir            Go to parent directory
 <C-a> / <A-c>    create                     Create file/dir (nested path support)

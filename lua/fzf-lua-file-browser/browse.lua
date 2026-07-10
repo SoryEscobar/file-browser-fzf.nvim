@@ -156,6 +156,35 @@ function M.browse(opts)
     title_pos = "center",
   }, opts.winopts or {})
 
+  opts.keymap = vim.tbl_deep_extend("force", {
+    fzf = {
+      ["ctrl-d"]     = "preview-page-down",
+      ["ctrl-u"]     = "preview-page-up",
+      ["shift-down"] = "preview-page-down",
+      ["shift-up"]   = "preview-page-up",
+      ["alt-J"]      = "preview-down",
+      ["alt-K"]      = "preview-up",
+      ["ctrl-f"]     = "page-down",
+      ["alt-f"]      = "page-down",
+      ["alt-b"]      = "page-up",
+      ["page-down"]  = "page-down",
+      ["page-up"]    = "page-up",
+    },
+    builtin = {
+      ["<C-d>"]      = "preview-page-down",
+      ["<C-u>"]      = "preview-page-up",
+      ["<S-Down>"]   = "preview-page-down",
+      ["<S-Up>"]     = "preview-page-up",
+      ["<M-J>"]      = "preview-down",
+      ["<M-K>"]      = "preview-up",
+      ["<C-f>"]      = "page-down",
+      ["<M-f>"]      = "page-down",
+      ["<M-b>"]      = "page-up",
+      ["<PageDown>"] = "page-down",
+      ["<PageUp>"]   = "page-up",
+    },
+  }, opts.keymap or {})
+
   -- Use fzf-lua core executor
   return fzf.fzf_exec(finder.get_contents(opts), opts)
 end
