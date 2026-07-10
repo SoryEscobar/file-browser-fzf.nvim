@@ -61,23 +61,38 @@ Default configuration:
       hide_parent_dir = false, -- hide ../ parent entry
       hijack_netrw = false,    -- replace netrw on directory buffers
       display_stat = false,    -- display file size / date
-      actions = {},            -- custom action keybind overrides
+      mappings = {             -- Telescope-style keymap overrides
+        i = { ["<C-k>"] = "keymaps_help", ["<C-a>"] = "create" },
+        n = { ["?"] = "keymaps_help", ["c"] = "create" },
+      },
     })
 <
 
 ==============================================================================
 5. MAPPINGS & ACTIONS                            *fzf-lua-file-browser-mappings*
 
-Default keymaps match `telescope-file-browser.nvim`:
+Default keymaps inside the browser picker:
 
 Keybind          Action                     Description
 ------------------------------------------------------------------------------
-<CR>             enter                      Enter directory or edit file
-<C-g>            goto_parent_dir            Go to parent directory
+<C-k>            keymaps_help               Open shortcuts cheat sheet modal
+<CR> / <Right>   enter                      Enter directory or edit file
+<Left> / <BS>    goto_parent_dir            Go to parent directory
+<C-a> / <A-c>    create                     Create file/dir (nested path support)
+<S-CR> / <C-n>   create_from_prompt         Create file/dir from prompt text
+<C-r> / <A-r>    rename                     Rename selected item(s) (+ LSP hook)
+<C-j> / <A-m>    move                       Move selected item(s) to directory
+<C-y> / <A-y>    copy                       Copy selected item(s) to directory
+<C-x> / <A-d>    remove                     Remove item(s) with confirmation
+<C-w>            change_cwd                 Change Neovim cwd (:cd)
+<C-b>            goto_cwd                   Go to Neovim working directory
 <C-e>            goto_home_dir              Go to home directory (~)
-<C-w>            goto_cwd                   Go to Neovim working directory
-<C-t>            change_cwd                 Change Neovim cwd (:cd)
-<A-c>            create                     Prompt to create file/folder
+<C-h>            toggle_hidden              Toggle hidden dotfiles display
+<C-i>            toggle_gitignore           Toggle gitignore filtering
+<C-l>            toggle_depth               Toggle recursive folder scanning
+<C-g>            toggle_grouping            Toggle directories first grouping
+<C-s>            toggle_all                 Toggle all filters (show all)
+<C-o>            open                       Open item with system app
 <S-CR>           create_from_prompt         Create file/folder from typed prompt
 <A-r>            rename                     Rename selected item(s)
 <A-m>            move                       Move selected item(s)

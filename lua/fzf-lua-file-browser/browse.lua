@@ -19,10 +19,31 @@ local function wrap_action(fn)
   return fn
 end
 
+local function normalize_key(k)
+  if type(k) ~= "string" then return k end
+  local s = k:lower()
+  s = s:gsub("^<c%-(.)>$", "ctrl-%1")
+  s = s:gsub("^<a%-(.)>$", "alt-%1")
+  s = s:gsub("^<m%-(.)>$", "alt-%1")
+  s = s:gsub("^<bs>$", "bspace")
+  s = s:gsub("^<cr>$", "default")
+  s = s:gsub("^<esc>$", "esc")
+  return s
+end
+
+local function resolve_action_val(v)
+  if type(v) == "string" and actions[v] then
+    return actions[v]
+  end
+  return v
+end
+
 ---Get default actions table for fzf-lua picker
 ---@param custom_actions table?
+---@param opts table?
 ---@return table
-local function get_actions(custom_actions)
+local function get_actions(custom_actions, opts)
+  opts = opts or {}
   local defaults = {
     ["default"]     = actions.enter,
     ["right"]       = actions.enter,
@@ -49,8 +70,39 @@ local function get_actions(custom_actions)
     ["ctrl-g"]      = wrap_action(actions.toggle_grouping),
     ["ctrl-s"]      = wrap_action(actions.toggle_all),
     ["ctrl-o"]      = actions.open,
+    ["ctrl-k"]      = wrap_action(actions.keymaps_help),
   }
-  return vim.tbl_deep_extend("force", defaults, custom_actions or {})
+
+  local normalized = {}
+
+  -- Support Telescope style mappings table (e.g., mappings = { i = { ["<C-a>"] = "create" } })
+  if type(opts.mappings) == "table" then
+    for k, v in pairs(opts.mappings) do
+      if type(v) == "table" then
+        for subk, subv in pairs(v) do
+          normalized[normalize_key(subk)] = resolve_action_val(subv)
+        end
+      else
+        normalized[normalize_key(k)] = resolve_action_val(v)
+      end
+    end
+  end
+
+  -- Support keymap / keymaps
+  local km = opts.keymaps or opts.keymap
+  if type(km) == "table" then
+    for k, v in pairs(km) do
+      normalized[normalize_key(k)] = resolve_action_val(v)
+    end
+  end
+
+  if type(custom_actions) == "table" then
+    for k, v in pairs(custom_actions) do
+      normalized[normalize_key(k)] = resolve_action_val(v)
+    end
+  end
+
+  return vim.tbl_deep_extend("force", defaults, normalized)
 end
 
 ---Format prompt string
@@ -91,7 +143,7 @@ function M.browse(opts)
     ["--header"] = string.format("   CWD: %s ", rel_cwd),
   }, opts.fzf_opts or {})
 
-  opts.actions = get_actions(opts.actions)
+  opts.actions = get_actions(opts.actions, opts)
   if not opts.previewer or opts.previewer == previewer.Previewer then
     opts.previewer = {
       _ctor = function()

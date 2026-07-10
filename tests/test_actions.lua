@@ -49,4 +49,15 @@ actions.backspace({ "  ../" }, { cwd = cwd, last_query = "" })
 vim.wait(100, function() return last_browse_opts ~= nil end, 10)
 assert_eq("/workspace/project", last_browse_opts and last_browse_opts.cwd, "backspace went to parent dir")
 
+-- Test nested directory creation via utils.create_path
+local tmp_nest = vim.fn.tempname()
+local nested_target = utils.join_paths(tmp_nest, "custom_folder/subfolder/newfile.txt")
+local ok_nest, err_nest = utils.create_path(nested_target, false)
+assert_eq(true, ok_nest, "nested directory creation succeeded")
+assert_eq(true, utils.path_exists(nested_target), "newfile.txt exists in created nested directory")
+vim.fn.delete(tmp_nest, "rf")
+
+-- Test keymaps_help action exists and runs
+assert_eq("function", type(actions.keymaps_help), "keymaps_help action exists")
+
 print("=== ALL test_actions.lua PASSED ===")

@@ -132,10 +132,15 @@ function M.create(_, opts)
     local ok, err = utils.create_path(target, is_dir)
     if not ok then
       vim.notify("Create failed: " .. tostring(err), vim.log.levels.ERROR)
+      reopen(opts)
     else
       vim.notify("Created: " .. input, vim.log.levels.INFO)
+      if is_dir then
+        reopen(opts, { cwd = target })
+      else
+        vim.cmd("edit " .. vim.fn.fnameescape(target))
+      end
     end
-    reopen(opts)
   end)
 end
 
@@ -154,10 +159,15 @@ function M.create_from_prompt(_, opts)
   local ok, err = utils.create_path(target, is_dir)
   if not ok then
     vim.notify("Create failed: " .. tostring(err), vim.log.levels.ERROR)
+    reopen(opts)
   else
     vim.notify("Created: " .. query, vim.log.levels.INFO)
+    if is_dir then
+      reopen(opts, { cwd = target })
+    else
+      vim.cmd("edit " .. vim.fn.fnameescape(target))
+    end
   end
-  reopen(opts)
 end
 
 ---Rename selected file(s) or directory(ies)
@@ -376,5 +386,64 @@ function M.backspace(selected, opts)
 end
 
 M.backspace_or_parent = M.backspace
+
+---Show available keybinds and short descriptions in an fzf-lua cheat sheet modal
+---@param _ string[]
+---@param opts table
+function M.keymaps_help(_, opts)
+  local items = {
+    "ctrl-k           │ Show shortcuts & keybinds help list",
+    "ctrl-a / alt-c   │ Create file/directory (creates parent dirs & opens file)",
+    "ctrl-r / alt-r   │ Rename selected item(s)",
+    "ctrl-y / alt-y   │ Copy selected item(s) to directory",
+    "ctrl-j / alt-m   │ Move selected item(s) to directory",
+    "ctrl-x / alt-d   │ Remove selected item(s)",
+    "ctrl-h           │ Toggle hidden files/folders",
+    "ctrl-i           │ Toggle gitignore filtering",
+    "ctrl-l           │ Toggle recursive directory scanning",
+    "ctrl-g           │ Toggle grouping directories first",
+    "ctrl-s           │ Toggle all filters (show all hidden/ignored)",
+    "ctrl-w           │ Change Neovim cwd to current browser directory",
+    "ctrl-b           │ Navigate to Neovim cwd",
+    "ctrl-e           │ Navigate to home directory (~)",
+    "ctrl-o           │ Open selected file/directory",
+    "alt-enter        │ Create file/directory from prompt text",
+    "<CR> / <Right>   │ Open file / enter directory",
+    "<BS> / <Left>    │ Go to parent directory",
+  }
+
+  local has_ui = #vim.api.nvim_list_uis() > 0
+  if not has_ui then
+    reopen(opts)
+    return
+  end
+
+  local fzf_ok, fzf = pcall(require, "fzf-lua")
+  if not fzf_ok then
+    reopen(opts)
+    return
+  end
+
+  fzf.fzf_exec(items, {
+    prompt = "Keybinds Help> ",
+    winopts = {
+      title = " fzf-lua-file-browser Shortcuts ",
+      title_pos = "center",
+      height = 0.65,
+      width = 0.75,
+    },
+    actions = {
+      ["default"] = function()
+        reopen(opts)
+      end,
+      ["esc"] = function()
+        reopen(opts)
+      end,
+      ["ctrl-c"] = function()
+        reopen(opts)
+      end,
+    },
+  })
+end
 
 return M

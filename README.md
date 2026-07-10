@@ -108,8 +108,18 @@ require("fzf-lua-file-browser").setup({
   hide_parent_dir = false, -- Hide ../ parent directory entry
   hijack_netrw = true,     -- Replace Netrw when editing directories
   display_stat = false,    -- Show file size and modification time
-  actions = {              -- Custom keybind overrides
-    -- ["ctrl-x"] = function(selected, opts) ... end
+
+  -- Configure keymaps either Telescope-style (mappings) or fzf-lua style (actions/keymaps):
+  mappings = {
+    ["i"] = {
+      ["<C-k>"] = "keymaps_help",
+      ["<C-a>"] = "create",
+      ["<C-r>"] = "rename",
+    },
+    ["n"] = {
+      ["c"] = "create",
+      ["?"] = "keymaps_help",
+    },
   },
 })
 ```
@@ -120,21 +130,24 @@ require("fzf-lua-file-browser").setup({
 
 | Keybind | Action | Description |
 |---|---|---|
-| `<CR>` | `enter` | Enter directory (`cwd = dir`) or edit file |
-| `<C-g>` | `goto_parent_dir` | Navigate to parent directory (`../`) |
+| `<C-k>` | `keymaps_help` | **Open shortcuts & keybinds cheat sheet modal** |
+| `<CR>` / `<Right>` | `enter` | Enter directory (`cwd = dir`) or edit file |
+| `<Left>` / `<BS>` | `goto_parent_dir` | Navigate to parent directory (`../`) |
+| `<C-a>` / `<A-c>` | `create` | Create file/dir (supports nested path creation `dir/sub/file.txt` & opens immediately in buffer) |
+| `<S-CR>` / `<C-n>` | `create_from_prompt` | Create file/folder from typed prompt text & open buffer |
+| `<C-r>` / `<A-r>` | `rename` | Rename single or multi-selected files/folders (+ LSP hook) |
+| `<C-j>` / `<A-m>` | `move` | Move selected item(s) to target directory |
+| `<C-y>` / `<A-y>` | `copy` | Copy selected item(s) to target directory |
+| `<C-x>` / `<A-d>` | `remove` | Delete selected item(s) with confirmation dialog |
+| `<C-w>` | `change_cwd` | Change Neovim's working directory (`:cd`) |
+| `<C-b>` | `goto_cwd` | Navigate to Neovim current working directory |
 | `<C-e>` | `goto_home_dir` | Navigate to home directory (`~`) |
-| `<C-w>` | `goto_cwd` | Navigate to Neovim current working directory |
-| `<C-t>` | `change_cwd` | Change Neovim's working directory (`:cd`) |
-| `<A-c>` | `create` | Interactive prompt to create file or directory (`/` suffix for dir) |
-| `<S-CR>` | `create_from_prompt` | Create file/folder from typed prompt text |
-| `<A-r>` | `rename` | Rename single or multi-selected files/folders (+ LSP hook) |
-| `<A-m>` | `move` | Move selected item(s) to target directory |
-| `<A-y>` | `copy` | Copy selected item(s) to target directory |
-| `<A-d>` | `remove` | Delete selected item(s) with confirmation dialog |
-| `<C-o>` | `open` | Open selected item with system default application |
 | `<C-h>` | `toggle_hidden` | Toggle hidden dotfiles display |
-| `<C-f>` | `toggle_browser` | Toggle between showing folders only vs all entries |
-| `<BS>` | `backspace` | If prompt query is empty, navigate to parent directory |
+| `<C-i>` | `toggle_gitignore` | Toggle gitignore filtering |
+| `<C-l>` | `toggle_depth` | Toggle recursive directory scanning |
+| `<C-g>` | `toggle_grouping` | Toggle grouping directories first |
+| `<C-s>` | `toggle_all` | Toggle all filters (show all hidden/ignored) |
+| `<C-o>` | `open` | Open selected item with system default application |
 
 ---
 
