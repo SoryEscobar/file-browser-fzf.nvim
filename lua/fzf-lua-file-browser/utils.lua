@@ -92,10 +92,8 @@ function M.parse_entry(entry, cwd)
   end
 
   local clean = M.strip_ansi(entry)
+  clean = clean:match("^[^\t]+") or clean
   -- Remove fzf-lua icon prefix if present (usually icon + space/nbsp)
-  -- In fzf-lua entries formatted with icons or devicons, the path starts after icon
-  -- Or if we formatted it, we can strip leading non-path symbols or spaces
-  -- Let's check if there's a non-breaking space (\194\160) or tab
   clean = clean:gsub("^[^\32\9\194\160]+[\32\9\194\160]+", "")
   clean = vim.trim(clean)
 
@@ -251,12 +249,15 @@ end
 ---Prompt confirmation dialog
 ---@param prompt_text string
 ---@param on_confirm fun()
-function M.confirm(prompt_text, on_confirm)
+---@param on_cancel? fun()
+function M.confirm(prompt_text, on_confirm, on_cancel)
   vim.ui.select({ "Yes", "No" }, {
     prompt = prompt_text,
   }, function(choice)
     if choice == "Yes" then
       on_confirm()
+    elseif on_cancel then
+      on_cancel()
     end
   end)
 end

@@ -60,4 +60,24 @@ vim.fn.delete(tmp_nest, "rf")
 -- Test keymaps_help action exists and runs
 assert_eq("function", type(actions.keymaps_help), "keymaps_help action exists")
 
+-- Test toggle_all cycles correctly and preserves custom user options
+last_browse_opts = nil
+local opts_all = { cwd = cwd, hidden = false, gitignore = true, display_stat = true }
+actions.toggle_all({}, opts_all)
+vim.wait(500, function() return last_browse_opts ~= nil end, 10)
+assert_eq(true, last_browse_opts and last_browse_opts.hidden, "toggle_all enabled hidden")
+assert_eq(false, last_browse_opts and last_browse_opts.gitignore, "toggle_all disabled gitignore")
+assert_eq(true, last_browse_opts and last_browse_opts.display_stat, "reopen preserved custom display_stat option")
+
+-- Cycle back
+last_browse_opts = nil
+actions.toggle_all({}, { cwd = cwd, hidden = true, gitignore = false, display_stat = true })
+vim.wait(500, function() return last_browse_opts ~= nil end, 10)
+assert_eq(false, last_browse_opts and last_browse_opts.hidden, "toggle_all toggled hidden back to false")
+assert_eq(true, last_browse_opts and last_browse_opts.gitignore, "toggle_all toggled gitignore back to true")
+
+-- Test parse_entry stripping tab-separated trailing stats
+local parsed_stat_entry = utils.parse_entry("  my file with spaces.txt\t  1.5KB  2026-07-10 14:30", "/tmp")
+assert_eq("my file with spaces.txt", parsed_stat_entry.relpath, "parse_entry stripped tab-separated stats correctly")
+
 print("=== ALL test_actions.lua PASSED ===")

@@ -113,7 +113,7 @@ local function format_entry(name, is_dir, stat, opts)
       end
     end
     if #parts > 0 then
-      stat_str = "  " .. ansi.grey(table.concat(parts, "  "))
+      stat_str = "\t  " .. ansi.grey(table.concat(parts, "  "))
     end
   end
 

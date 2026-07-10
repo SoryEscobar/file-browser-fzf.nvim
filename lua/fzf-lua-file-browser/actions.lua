@@ -14,16 +14,8 @@ end
 local function reopen(opts, overrides)
   opts = opts or {}
   overrides = overrides or {}
-  local clean_opts = {
-    cwd = overrides.cwd or opts.cwd,
-    hidden = overrides.hidden ~= nil and overrides.hidden or opts.hidden,
-    gitignore = overrides.gitignore ~= nil and overrides.gitignore or opts.gitignore,
-    depth = overrides.depth ~= nil and overrides.depth or opts.depth,
-    grouped = overrides.grouped ~= nil and overrides.grouped or opts.grouped,
-    hijack_netrw = opts.hijack_netrw,
-    actions = opts.actions,
-    winopts = vim.tbl_deep_extend("force", { reuse = true }, overrides.winopts or {}),
-  }
+  local clean_opts = vim.tbl_deep_extend("force", vim.deepcopy(opts), overrides)
+  clean_opts.winopts = vim.tbl_deep_extend("force", { reuse = true }, clean_opts.winopts or {})
   vim.schedule(function()
     require("fzf-lua-file-browser").browse(clean_opts)
   end)
@@ -126,7 +118,10 @@ function M.create(_, opts)
     default = "",
     items = { "new_file.lua", "new_folder/" },
   }, function(input)
-    if not input or input == "" then return end
+    if not input or input == "" then
+      reopen(opts)
+      return
+    end
     local is_dir = input:sub(-1) == "/"
     local target = utils.normalize_path(utils.join_paths(cwd, input))
     local ok, err = utils.create_path(target, is_dir)
@@ -307,6 +302,8 @@ function M.remove(selected, opts)
       vim.notify(string.format("Deleted %d item(s)", count), vim.log.levels.INFO)
     end
     reopen(opts)
+  end, function()
+    reopen(opts)
   end)
 end
 
@@ -372,7 +369,12 @@ end
 ---@param _ string[]
 ---@param opts table
 function M.toggle_all(_, opts)
-  reopen(opts, { hidden = not (opts.hidden or false), gitignore = false })
+  local showing_all = (opts.hidden == true and opts.gitignore == false)
+  if showing_all then
+    reopen(opts, { hidden = false, gitignore = true })
+  else
+    reopen(opts, { hidden = true, gitignore = false })
+  end
 end
 
 ---Backspace action: if prompt is empty, go to parent dir
