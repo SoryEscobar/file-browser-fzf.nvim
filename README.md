@@ -103,7 +103,7 @@ return {
 
 ## ⚙️ Configuration
 
-A complete sample configuration file is available at [`examples/config.lua`](file:///Users/soryescobar/sory/coding/2026/antigravity/projects/file-browser-fzf-lua/examples/config.lua).
+A complete sample configuration file is available at [`examples/config.lua`](./examples/config.lua).
 
 ```lua
 require("fzf-lua-file-browser").setup({
