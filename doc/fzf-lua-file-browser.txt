@@ -1,0 +1,108 @@
+*fzf-lua-file-browser.txt*   File browser extension powered by fzf-lua
+
+==============================================================================
+CONTENTS                                          *fzf-lua-file-browser-contents*
+
+    1. Introduction ................................ |fzf-lua-file-browser-intro|
+    2. Requirements ................................ |fzf-lua-file-browser-reqs|
+    3. Installation ................................ |fzf-lua-file-browser-install|
+    4. Configuration ............................... |fzf-lua-file-browser-config|
+    5. Mappings & Actions .......................... |fzf-lua-file-browser-mappings|
+    6. LazyVim Integration ......................... |fzf-lua-file-browser-lazyvim|
+
+==============================================================================
+1. INTRODUCTION                                     *fzf-lua-file-browser-intro*
+
+`fzf-lua-file-browser.nvim` is a specialized file system browser and manager
+built entirely on top of `fzf-lua`, serving as a drop-in, zero-telescope
+equivalent of `telescope-file-browser.nvim`.
+
+Key capabilities:
+- Synchronized file/folder creation (including nested `foo/bar/baz.lua`).
+- Synchronized file/folder renaming with Neovim 0.10+ LSP rename integration.
+- Copying, moving, and deleting files and directories with confirmation.
+- Direct navigation into directories (`<CR>` on a folder enters that folder).
+- Netrw replacement (`hijack_netrw = true`).
+
+==============================================================================
+2. REQUIREMENTS                                      *fzf-lua-file-browser-reqs*
+
+- Neovim >= 0.9.0 (0.10+ recommended for LSP file rename integration)
+- ibhagwan/fzf-lua
+- nvim-tree/nvim-web-devicons (optional, for icons)
+
+==============================================================================
+3. INSTALLATION                                   *fzf-lua-file-browser-install*
+
+Using lazy.nvim:
+>lua
+    {
+      "soryescobar/fzf-lua-file-browser.nvim",
+      dependencies = { "ibhagwan/fzf-lua" },
+      config = function()
+        require("fzf-lua-file-browser").setup({
+          hijack_netrw = true,
+          hidden = true,
+        })
+      end,
+    }
+<
+
+==============================================================================
+4. CONFIGURATION                                   *fzf-lua-file-browser-config*
+
+Default configuration:
+>lua
+    require("fzf-lua-file-browser").setup({
+      cwd = nil,               -- default working directory
+      hidden = false,          -- show hidden dotfiles
+      files_only = false,      -- show only files
+      dirs_only = false,       -- show only directories
+      hide_parent_dir = false, -- hide ../ parent entry
+      hijack_netrw = false,    -- replace netrw on directory buffers
+      display_stat = false,    -- display file size / date
+      actions = {},            -- custom action keybind overrides
+    })
+<
+
+==============================================================================
+5. MAPPINGS & ACTIONS                            *fzf-lua-file-browser-mappings*
+
+Default keymaps match `telescope-file-browser.nvim`:
+
+Keybind          Action                     Description
+------------------------------------------------------------------------------
+<CR>             enter                      Enter directory or edit file
+<C-g>            goto_parent_dir            Go to parent directory
+<C-e>            goto_home_dir              Go to home directory (~)
+<C-w>            goto_cwd                   Go to Neovim working directory
+<C-t>            change_cwd                 Change Neovim cwd (:cd)
+<A-c>            create                     Prompt to create file/folder
+<S-CR>           create_from_prompt         Create file/folder from typed prompt
+<A-r>            rename                     Rename selected item(s)
+<A-m>            move                       Move selected item(s)
+<A-y>            copy                       Copy selected item(s)
+<A-d>            remove                     Delete selected item(s)
+<C-o>            open                       Open item with system application
+<C-h>            toggle_hidden              Toggle showing hidden dotfiles
+<C-f>            toggle_browser             Toggle directories only vs all
+<BS>             backspace                  Go to parent directory if prompt empty
+
+==============================================================================
+6. LAZYVIM INTEGRATION                           *fzf-lua-file-browser-lazyvim*
+
+Drop-in LazyVim spec:
+>lua
+    return {
+      "fzf-lua-file-browser.nvim",
+      dependencies = { "ibhagwan/fzf-lua" },
+      opts = { hijack_netrw = true, hidden = true },
+      keys = {
+        { "<leader>fB", function() require("fzf-lua-file-browser").browse({ cwd = vim.fn.getcwd() }) end, desc = "File Browser (Root Dir)" },
+        { "<leader>fb", function() require("fzf-lua-file-browser").browse({ cwd = vim.fn.expand("%:p:h") }) end, desc = "File Browser (Buffer Dir)" },
+        { "<space>fb", function() require("fzf-lua-file-browser").browse() end, desc = "FzfLua File Browser" },
+      },
+    }
+<
+
+vim:tw=78:ts=8:ft=help:norl:

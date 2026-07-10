@@ -1,0 +1,6 @@
+.reference/
+.tests_cache/
+*.swp
+*.swo
+*~
+.DS_Store
