@@ -2,7 +2,7 @@
 
 [![Neovim](https://img.shields.io/badge/Neovim-0.9+-blueviolet.svg?style=flat-square&logo=Neovim)](https://neovim.io)
 [![fzf-lua](https://img.shields.io/badge/Powered%20by-fzf--lua-00A98F.svg?style=flat-square)](https://github.com/ibhagwan/fzf-lua)
-[![CI](https://github.com/SoryEscobar/fzf-lua-file-browser.nvim/actions/workflows/ci.yml/badge.svg)](https://github.com/SoryEscobar/fzf-lua-file-browser.nvim/actions/workflows/ci.yml)
+[![CI](https://github.com/SoryEscobar/file-browser-fzf.nvim/actions/workflows/ci.yml/badge.svg)](https://github.com/SoryEscobar/file-browser-fzf.nvim/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 
 `fzf-lua-file-browser.nvim` is a blazing fast, feature-rich file system explorer and manager for Neovim built **entirely on `fzf-lua`** — with zero dependency on Telescope or Plenary.
@@ -55,7 +55,7 @@ Drop this spec into `lua/plugins/fzf-file-browser.lua`:
 ```lua
 return {
   {
-    "SoryEscobar/fzf-lua-file-browser.nvim", -- Or local path
+    "SoryEscobar/file-browser-fzf.nvim", -- Or local path
     dependencies = { "ibhagwan/fzf-lua" },
     opts = {
       hijack_netrw = true,
@@ -93,7 +93,7 @@ return {
 
 ```lua
 {
-  "SoryEscobar/fzf-lua-file-browser.nvim",
+  "SoryEscobar/file-browser-fzf.nvim",
   dependencies = { "ibhagwan/fzf-lua" },
   config = function()
     require("fzf-lua-file-browser").setup({
