@@ -82,6 +82,40 @@ function M.strip_ansi(str)
   return str:gsub("\27%[[0-9;]*m", ""):gsub("\27%[[0-9;]*[a-zA-Z]", "")
 end
 
+---Strip fzf-lua icon prefix, unicode space separators (EN SPACE U+2002 \226\128\130, NBSP U+00A0 \194\160), and ANSI coloring from an entry string
+---@param entry string
+---@return string
+function M.strip_icon_prefix(entry)
+  if not entry or entry == "" then return "" end
+  local clean = M.strip_ansi(entry)
+  clean = clean:match("^[^\t]+") or clean
+
+  -- 1. If fzf-lua's path.entry_to_file is available, let it parse first
+  local ok_fzf, fzf_path = pcall(require, "fzf-lua.path")
+  if ok_fzf and fzf_path and type(fzf_path.entry_to_file) == "function" then
+    local parsed = fzf_path.entry_to_file(clean, {})
+    if parsed and parsed.path and #parsed.path > 0 then
+      clean = parsed.path
+    end
+  end
+
+  -- 2. Strip fzf-lua non-breaking space / en-space separators (\226\128\130 U+2002, \194\160 U+00A0)
+  if clean:find("\226\128\130", 1, true) then
+    local parts = vim.split(clean, "\226\128\130", { plain = true })
+    clean = parts[#parts]
+  elseif clean:find("\194\160", 1, true) then
+    local parts = vim.split(clean, "\194\160", { plain = true })
+    clean = parts[#parts]
+  end
+
+  -- 3. If there is still a leading non-ASCII symbol (e.g. Nerd Font icon byte >= 0x80) followed by spaces, strip it
+  if clean:byte(1) and clean:byte(1) >= 0x80 then
+    clean = clean:gsub("^[\128-\255]+%s*", "")
+  end
+
+  return vim.trim(clean)
+end
+
 ---Parse an entry selected in fzf-lua into absolute path and type
 ---@param entry string
 ---@param cwd string
@@ -91,11 +125,7 @@ function M.parse_entry(entry, cwd)
     return { path = cwd, relpath = ".", is_dir = true, is_parent = false }
   end
 
-  local clean = M.strip_ansi(entry)
-  clean = clean:match("^[^\t]+") or clean
-  -- Remove fzf-lua icon prefix if present (usually icon + space/nbsp)
-  clean = clean:gsub("^[^\32\9\194\160]+[\32\9\194\160]+", "")
-  clean = vim.trim(clean)
+  local clean = M.strip_icon_prefix(entry)
 
   if clean == "../" or clean == ".." then
     local parent = M.parent_dir(cwd)
@@ -314,6 +344,47 @@ function M.picker_input(opts, on_submit)
       end,
     },
   })
+end
+
+---Get fixed session root working directory
+---@param opts table?
+---@return string
+function M.get_root_cwd(opts)
+  opts = opts or {}
+  return M.normalize_path(opts.root_cwd or opts._root_cwd or vim.fn.getcwd())
+end
+
+---Get current directory path being browsed
+---@param opts table?
+---@return string
+function M.get_browse_path(opts)
+  opts = opts or {}
+  return M.normalize_path(opts.path or opts.cwd or vim.fn.getcwd())
+end
+
+---Get clean relative path of target path relative to base cwd matching telescope file-browser prompt format
+---@param path string
+---@param cwd string
+---@return string
+function M.relative_path(path, cwd)
+  path = M.normalize_path(path)
+  cwd = M.normalize_path(cwd)
+  if path == cwd then
+    return "./"
+  end
+  local prefix = cwd .. "/"
+  if path:sub(1, #prefix) == prefix then
+    local sub = path:sub(#prefix + 1)
+    if sub:sub(-1) ~= "/" then
+      sub = sub .. "/"
+    end
+    return sub
+  end
+  local rel = vim.fn.fnamemodify(path, ":~")
+  if rel:sub(-1) ~= "/" then
+    rel = rel .. "/"
+  end
+  return rel
 end
 
 return M

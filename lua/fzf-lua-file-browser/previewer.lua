@@ -22,7 +22,7 @@ function Previewer:new(o, opts, fzf_win)
 end
 
 function Previewer:entry_to_file(entry_str)
-  local cwd = self.opts.cwd or vim.fn.getcwd()
+  local cwd = self.opts.path or self.opts.cwd or vim.fn.getcwd()
   local parsed = utils.parse_entry(entry_str, cwd)
   return {
     path = parsed.path,
@@ -30,7 +30,7 @@ function Previewer:entry_to_file(entry_str)
 end
 
 function Previewer:parse_entry(entry_str, _cb)
-  local cwd = self.opts.cwd or vim.fn.getcwd()
+  local cwd = self.opts.path or self.opts.cwd or vim.fn.getcwd()
   local parsed = utils.parse_entry(entry_str, cwd)
 
   local entry = Previewer.super.parse_entry(self, entry_str, _cb)

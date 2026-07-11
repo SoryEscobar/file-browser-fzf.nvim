@@ -16,6 +16,9 @@ local function reopen(opts, overrides)
   overrides = overrides or {}
   local base = opts.__browse_opts or opts
   local clean_opts = vim.tbl_deep_extend("force", vim.deepcopy(base), overrides)
+  clean_opts.root_cwd = overrides.root_cwd or utils.get_root_cwd(opts)
+  clean_opts.path = overrides.path or utils.get_browse_path(opts)
+  clean_opts.cwd = clean_opts.path
   clean_opts.actions = overrides.actions
   clean_opts.fzf_opts = overrides.fzf_opts
   clean_opts.previewer = overrides.previewer
@@ -49,12 +52,13 @@ end
 ---@param selected string[]
 ---@param opts table
 function M.enter(selected, opts)
-  local cwd = opts.cwd or vim.fn.getcwd()
+  local browse_path = utils.get_browse_path(opts)
+  local root_cwd = utils.get_root_cwd(opts)
   if not selected or #selected == 0 then return end
 
-  local parsed = utils.parse_entry(selected[1], cwd)
+  local parsed = utils.parse_entry(selected[1], browse_path)
   if parsed.is_dir then
-    reopen(opts, { cwd = parsed.path, query = "" })
+    reopen(opts, { root_cwd = root_cwd, path = parsed.path, cwd = parsed.path, query = "" })
   else
     vim.cmd("edit " .. vim.fn.fnameescape(parsed.path))
   end
@@ -64,41 +68,43 @@ end
 ---@param _ string[]
 ---@param opts table
 function M.goto_parent_dir(_, opts)
-  local cwd = opts.cwd or vim.fn.getcwd()
-  local parent = utils.parent_dir(cwd)
-  reopen(opts, { cwd = parent, query = "" })
+  local browse_path = utils.get_browse_path(opts)
+  local root_cwd = utils.get_root_cwd(opts)
+  local parent = utils.parent_dir(browse_path)
+  reopen(opts, { root_cwd = root_cwd, path = parent, cwd = parent, query = "" })
 end
 
 ---Go to home directory (~)
 ---@param _ string[]
 ---@param opts table
 function M.goto_home_dir(_, opts)
+  local root_cwd = utils.get_root_cwd(opts)
   local home = vim.fn.expand("~")
-  reopen(opts, { cwd = home, query = "" })
+  reopen(opts, { root_cwd = root_cwd, path = home, cwd = home, query = "" })
 end
 
 ---Go to current working directory (vim.fn.getcwd())
 ---@param _ string[]
 ---@param opts table
 function M.goto_cwd(_, opts)
-  local cwd = vim.fn.getcwd()
-  reopen(opts, { cwd = cwd, query = "" })
+  local root_cwd = utils.get_root_cwd(opts)
+  reopen(opts, { root_cwd = root_cwd, path = root_cwd, cwd = root_cwd, query = "" })
 end
 
 ---Change Neovim's working directory (:cd)
 ---@param selected string[]
 ---@param opts table
 function M.change_cwd(selected, opts)
-  local cwd = opts.cwd or vim.fn.getcwd()
-  local target = cwd
+  local browse_path = utils.get_browse_path(opts)
+  local target = browse_path
   if selected and #selected > 0 then
-    local parsed = utils.parse_entry(selected[1], cwd)
+    local parsed = utils.parse_entry(selected[1], browse_path)
     target = parsed.is_dir and parsed.path or utils.parent_dir(parsed.path)
   end
   local ok, err = pcall(vim.cmd.cd, target)
   if ok then
     vim.notify("Changed Neovim working directory to: " .. target, vim.log.levels.INFO)
-    reopen(opts, { cwd = target })
+    reopen(opts, { root_cwd = target, path = target, cwd = target })
   else
     vim.notify("Failed to change working directory: " .. tostring(err), vim.log.levels.ERROR)
   end
@@ -124,7 +130,7 @@ end
 ---@param _ string[]
 ---@param opts table
 function M.create(_, opts)
-  local cwd = opts.cwd or vim.fn.getcwd()
+  local cwd = utils.get_browse_path(opts)
   utils.picker_input({
     prompt = "Create file/dir> ",
     default = "",
@@ -143,7 +149,7 @@ function M.create(_, opts)
     else
       vim.notify("Created: " .. input, vim.log.levels.INFO)
       if is_dir then
-        reopen(opts, { cwd = target })
+        reopen(opts, { root_cwd = utils.get_root_cwd(opts), path = target, cwd = target })
       else
         vim.cmd("edit " .. vim.fn.fnameescape(target))
       end
@@ -155,7 +161,7 @@ end
 ---@param _ string[]
 ---@param opts table
 function M.create_from_prompt(_, opts)
-  local cwd = opts.cwd or vim.fn.getcwd()
+  local cwd = utils.get_browse_path(opts)
   local query = get_query(opts)
   if not query or query == "" then
     vim.notify("Prompt is empty. Type filename in prompt first.", vim.log.levels.WARN)
@@ -170,7 +176,7 @@ function M.create_from_prompt(_, opts)
   else
     vim.notify("Created: " .. query, vim.log.levels.INFO)
     if is_dir then
-      reopen(opts, { cwd = target })
+      reopen(opts, { root_cwd = utils.get_root_cwd(opts), path = target, cwd = target })
     else
       vim.cmd("edit " .. vim.fn.fnameescape(target))
     end
@@ -181,7 +187,7 @@ end
 ---@param selected string[]
 ---@param opts table
 function M.rename(selected, opts)
-  local cwd = opts.cwd or vim.fn.getcwd()
+  local cwd = utils.get_browse_path(opts)
   local items = parse_selected(selected, cwd)
   if #items == 0 then return end
 
@@ -220,7 +226,7 @@ end
 ---@param selected string[]
 ---@param opts table
 function M.move(selected, opts)
-  local cwd = opts.cwd or vim.fn.getcwd()
+  local cwd = utils.get_browse_path(opts)
   local items = parse_selected(selected, cwd)
   if #items == 0 then return end
 
@@ -255,7 +261,7 @@ end
 ---@param selected string[]
 ---@param opts table
 function M.copy(selected, opts)
-  local cwd = opts.cwd or vim.fn.getcwd()
+  local cwd = utils.get_browse_path(opts)
   local items = parse_selected(selected, cwd)
   if #items == 0 then return end
 
@@ -290,7 +296,7 @@ end
 ---@param selected string[]
 ---@param opts table
 function M.remove(selected, opts)
-  local cwd = opts.cwd or vim.fn.getcwd()
+  local cwd = utils.get_browse_path(opts)
   local items = parse_selected(selected, cwd)
   if #items == 0 then return end
 
@@ -323,7 +329,7 @@ end
 ---@param selected string[]
 ---@param opts table
 function M.open(selected, opts)
-  local cwd = opts.cwd or vim.fn.getcwd()
+  local cwd = utils.get_browse_path(opts)
   local items = parse_selected(selected, cwd)
   for _, item in ipairs(items) do
     if vim.ui.open then

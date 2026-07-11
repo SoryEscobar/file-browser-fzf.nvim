@@ -139,19 +139,30 @@ function M.browse(opts)
     opts.__browse_opts = pristine
   end
 
-  local default_cwd = vim.fn.getcwd()
-  if vim.fn.expand("%:p") ~= "" then
-    local buf_dir = vim.fn.expand("%:p:h")
-    if vim.fn.isdirectory(buf_dir) == 1 then
-      default_cwd = buf_dir
+  local session_cwd = utils.normalize_path(opts.root_cwd or opts._root_cwd or opts.cwd or vim.fn.getcwd())
+  local browse_path = opts.path
+  if not browse_path then
+    if not opts.cwd and not opts.root_cwd and vim.fn.expand("%:p") ~= "" then
+      local buf_dir = vim.fn.expand("%:p:h")
+      if vim.fn.isdirectory(buf_dir) == 1 then
+        browse_path = buf_dir
+      end
     end
+    browse_path = browse_path or session_cwd
   end
-  opts.cwd = utils.normalize_path(opts.cwd or default_cwd)
-  opts.prompt = opts.prompt or "File Browser> "
+  browse_path = utils.normalize_path(browse_path)
 
-  local rel_cwd = vim.fn.fnamemodify(opts.cwd, ":~")
+  opts.root_cwd = session_cwd
+  opts._root_cwd = session_cwd
+  opts.path = browse_path
+  opts.cwd = browse_path
+
+  local rel_path = utils.relative_path(browse_path, session_cwd)
+  opts.prompt = rel_path .. "> "
+
+  local display_cwd = vim.fn.fnamemodify(session_cwd, ":~")
   opts.fzf_opts = vim.tbl_deep_extend("force", {
-    ["--header"] = string.format("   CWD: %s ", rel_cwd),
+    ["--header"] = string.format("   CWD: %s  │  Folder: %s ", display_cwd, rel_path),
   }, opts.fzf_opts or {})
 
   opts.actions = get_actions(opts.actions, opts)
@@ -163,7 +174,7 @@ function M.browse(opts)
     }
   end
   opts.winopts = vim.tbl_deep_extend("force", {
-    title = string.format(" File Browser [%s] ", rel_cwd),
+    title = string.format(" File Browser [%s] ", rel_path),
     title_pos = "center",
   }, opts.winopts or {})
 

@@ -56,6 +56,20 @@ ok, err = utils.delete_path(utils.join_paths(tmpdir, "nested"))
 assert_eq(true, ok, "delete_path folder")
 assert_eq(true, vim.fn.isdirectory(utils.join_paths(tmpdir, "nested")) == 0, "nested folder deleted")
 
+-- Test relative_path formatting for prompt display
+assert_eq("./", utils.relative_path("/workspace", "/workspace"), "relative_path same directory")
+assert_eq("src/components/", utils.relative_path("/workspace/src/components", "/workspace"), "relative_path subdirectory")
+
+-- Test get_root_cwd and get_browse_path separation
+local test_opts = { root_cwd = "/workspace", path = "/workspace/src/components", cwd = "/workspace/src/components" }
+assert_eq("/workspace", utils.get_root_cwd(test_opts), "get_root_cwd returns session root")
+assert_eq("/workspace/src/components", utils.get_browse_path(test_opts), "get_browse_path returns browsed folder")
+
+-- Test strip_icon_prefix and parse_entry handling EN SPACE (U+2002 \226\128\130) separator from fzf-lua
+assert_eq("Applications/", utils.strip_icon_prefix("\226\128\130Applications/"), "strip_icon_prefix strips EN SPACE icon separator")
+local parsed_enspace = utils.parse_entry("\226\128\130Applications/", "/Users/soryescobar")
+assert_eq("/Users/soryescobar/Applications", parsed_enspace.path, "parse_entry handles EN SPACE icon separator correctly")
+
 vim.fn.delete(tmpdir, "rf")
 
 print("=== ALL test_utils.lua PASSED ===")

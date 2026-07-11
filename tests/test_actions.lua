@@ -88,5 +88,27 @@ actions.backspace({}, bs_test_opts)
 local bs_empty_opts = { cwd = "/tmp/subdir", query = "" }
 actions.backspace({}, bs_empty_opts)
 
+-- Test entering directory preserves root_cwd and updates path
+last_browse_opts = nil
+actions.enter({ "  src/" }, { root_cwd = "/workspace/project", path = "/workspace/project" })
+vim.wait(500, function() return last_browse_opts ~= nil end, 10)
+assert_eq("/workspace/project", last_browse_opts and last_browse_opts.root_cwd, "enter preserved root_cwd")
+assert_eq("/workspace/project/src", last_browse_opts and last_browse_opts.path, "enter updated path")
+
+-- Test goto_parent_dir from 3 levels nested navigates up 1 level without jumping to home or root
+last_browse_opts = nil
+actions.goto_parent_dir({}, { root_cwd = "/workspace/project", path = "/workspace/project/src/components/button" })
+vim.wait(500, function() return last_browse_opts ~= nil end, 10)
+assert_eq("/workspace/project", last_browse_opts and last_browse_opts.root_cwd, "goto_parent_dir preserved root_cwd")
+assert_eq("/workspace/project/src/components", last_browse_opts and last_browse_opts.path, "goto_parent_dir navigated up exactly 1 level")
+
+-- Test toggle_depth preserves root_cwd and path without defaulting to home
+last_browse_opts = nil
+actions.toggle_depth({}, { root_cwd = "/workspace/project", path = "/workspace/project/src", depth = 1 })
+vim.wait(500, function() return last_browse_opts ~= nil end, 10)
+assert_eq("/workspace/project", last_browse_opts and last_browse_opts.root_cwd, "toggle_depth preserved root_cwd")
+assert_eq("/workspace/project/src", last_browse_opts and last_browse_opts.path, "toggle_depth preserved path")
+assert_eq(false, last_browse_opts and last_browse_opts.depth, "toggle_depth switched depth to recursive (false)")
+
 print("=== ALL test_actions.lua PASSED ===")
 
