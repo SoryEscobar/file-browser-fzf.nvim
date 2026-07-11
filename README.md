@@ -16,7 +16,7 @@ It provides a 100% equivalent workflow to [`telescope-file-browser.nvim`](https:
 - **🚀 100% Pure `fzf-lua`**: No Telescope or Plenary dependencies.
 - **📂 Interactive Directory Navigator**:
   - Enter folders (`<CR>` on a directory navigates into it).
-  - Go up to parent directory (`<C-g>` or `<BS>` when prompt query is empty).
+  - Go up to parent directory (`<Left>` arrow key).
   - Jump to home (`<C-e>`) or current Neovim working directory (`<C-w>`).
   - Synchronize Neovim's `:cd` working directory (`<C-t>`).
 - **🛠️ Synchronized File System Operations**:
@@ -145,7 +145,8 @@ require("fzf-lua-file-browser").setup({
 | `<C-d>` / `<C-u>` | `preview-page-down` / `preview-page-up` | **Scroll right preview panel down / up (Page)** |
 | `<C-f>` / `<A-b>` | `page-down` / `page-up` | **Scroll left listings panel down / up (Page)** |
 | `<CR>` / `<Right>` | `enter` | Enter directory (`cwd = dir`) or edit file |
-| `<Left>` / `<BS>` | `goto_parent_dir` | Navigate to parent directory (`../`) |
+| `<Left>` | `goto_parent_dir` | Navigate to parent directory (`../`) |
+| `<BS>` | `native backspace` | Delete backward character from prompt without UI re-render |
 | `<C-a>` / `<A-c>` | `create` | Create file/dir (supports nested path creation `dir/sub/file.txt` & opens immediately in buffer) |
 | `<S-CR>` / `<C-n>` | `create_from_prompt` | Create file/folder from typed prompt text & open buffer |
 | `<C-r>` / `<A-r>` | `rename` | Rename single or multi-selected files/folders (+ LSP hook) |

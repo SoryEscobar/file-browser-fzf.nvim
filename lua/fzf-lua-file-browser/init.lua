@@ -1,7 +1,9 @@
 local M = {}
 
 M.actions = require("fzf-lua-file-browser.actions")
-M.browse = require("fzf-lua-file-browser.browse").browse
+function M.browse(opts)
+  return require("fzf-lua-file-browser.browse").browse(opts)
+end
 
 local default_config = {
   cwd = nil,

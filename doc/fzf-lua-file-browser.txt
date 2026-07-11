@@ -103,7 +103,8 @@ Keybind          Action                     Description
 <C-o>            open                       Open item with system application
 <C-h>            toggle_hidden              Toggle showing hidden dotfiles
 <C-f>            toggle_browser             Toggle directories only vs all
-<BS>             backspace                  Go to parent directory if prompt empty
+<Left>           goto_parent_dir            Go to parent directory (../)
+<BS>             native backspace           Delete backward character from prompt
 
 ==============================================================================
 6. LAZYVIM INTEGRATION                           *fzf-lua-file-browser-lazyvim*

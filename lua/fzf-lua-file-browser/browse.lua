@@ -48,7 +48,6 @@ local function get_actions(custom_actions, opts)
     ["default"]     = actions.enter,
     ["right"]       = actions.enter,
     ["left"]        = wrap_action(actions.goto_parent_dir),
-    ["_bspace"]     = wrap_action(actions.goto_parent_dir),
     ["ctrl-a"]      = actions.create,
     ["alt-c"]       = actions.create,
     ["alt-enter"]   = actions.create_from_prompt,
@@ -92,7 +91,9 @@ local function get_actions(custom_actions, opts)
   local km = opts.keymaps or opts.keymap
   if type(km) == "table" then
     for k, v in pairs(km) do
-      normalized[normalize_key(k)] = resolve_action_val(v)
+      if k ~= "fzf" and k ~= "builtin" then
+        normalized[normalize_key(k)] = resolve_action_val(v)
+      end
     end
   end
 
@@ -178,7 +179,6 @@ function M.browse(opts)
       ["alt-b"]      = "page-up",
       ["page-down"]  = "page-down",
       ["page-up"]    = "page-up",
-      ["bspace"]     = "transform:[[ -n {q} ]] && echo backward-delete-char || echo 'print(_bspace)+accept'",
     },
     builtin = {
       ["<C-d>"]      = "preview-page-down",
@@ -195,8 +195,32 @@ function M.browse(opts)
     },
   }, opts.keymap or {})
 
+  -- Explicitly strip any bspace / <BS> action or keymap overrides passed from user/global configs
+  -- and ensure is_live is unset so character additions and removals never re-render the UI
+  opts.is_live = nil
+  if type(opts.actions) == "table" then
+    opts.actions["bspace"] = nil
+    opts.actions["_bspace"] = nil
+    opts.actions["<bs>"] = nil
+    opts.actions["<BS>"] = nil
+  end
+  if type(opts.keymap) == "table" then
+    if type(opts.keymap.fzf) == "table" then
+      opts.keymap.fzf["bspace"] = nil
+      opts.keymap.fzf["<bs>"] = nil
+      opts.keymap.fzf["<BS>"] = nil
+    end
+    if type(opts.keymap.builtin) == "table" then
+      opts.keymap.builtin["bspace"] = nil
+      opts.keymap.builtin["<bs>"] = nil
+      opts.keymap.builtin["<BS>"] = nil
+    end
+  end
+
   -- Use fzf-lua core executor
   return fzf.fzf_exec(finder.get_contents(opts), opts)
 end
+
+M.get_actions = get_actions
 
 return M

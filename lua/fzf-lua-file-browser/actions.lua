@@ -431,7 +431,7 @@ function M.keymaps_help(_, opts)
     "ctrl-o           │ Open selected file/directory",
     "alt-enter        │ Create file/directory from prompt text",
     "<CR> / <Right>   │ Open file / enter directory",
-    "<BS> / <Left>    │ Go to parent directory",
+    "<Left>           │ Go to parent directory",
   }
 
   local has_ui = #vim.api.nvim_list_uis() > 0
