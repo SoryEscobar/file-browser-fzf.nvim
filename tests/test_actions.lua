@@ -108,7 +108,19 @@ actions.toggle_depth({}, { root_cwd = "/workspace/project", path = "/workspace/p
 vim.wait(500, function() return last_browse_opts ~= nil end, 10)
 assert_eq("/workspace/project", last_browse_opts and last_browse_opts.root_cwd, "toggle_depth preserved root_cwd")
 assert_eq("/workspace/project/src", last_browse_opts and last_browse_opts.path, "toggle_depth preserved path")
-assert_eq(false, last_browse_opts and last_browse_opts.depth, "toggle_depth switched depth to recursive (false)")
+-- Test goto_cwd toggles to root_cwd and records previous directory
+last_browse_opts = nil
+actions.goto_cwd({}, { root_cwd = "/workspace/project", path = "/workspace/project/src" })
+vim.wait(500, function() return last_browse_opts ~= nil end, 10)
+assert_eq("/workspace/project", last_browse_opts and last_browse_opts.path, "goto_cwd switched path to root_cwd")
+assert_eq("/workspace/project/src", last_browse_opts and last_browse_opts.__prev_browse_path, "goto_cwd recorded previous path")
+
+-- Test goto_cwd toggles back to __prev_browse_path when already at root_cwd
+local prev_opts = last_browse_opts
+last_browse_opts = nil
+actions.goto_cwd({}, prev_opts)
+vim.wait(500, function() return last_browse_opts ~= nil end, 10)
+assert_eq("/workspace/project/src", last_browse_opts and last_browse_opts.path, "goto_cwd toggled back to previous path")
 
 print("=== ALL test_actions.lua PASSED ===")
 

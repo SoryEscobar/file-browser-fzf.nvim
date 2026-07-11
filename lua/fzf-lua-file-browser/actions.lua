@@ -19,6 +19,11 @@ local function reopen(opts, overrides)
   clean_opts.root_cwd = overrides.root_cwd or utils.get_root_cwd(opts)
   clean_opts.path = overrides.path or utils.get_browse_path(opts)
   clean_opts.cwd = clean_opts.path
+  if overrides.__prev_browse_path ~= nil then
+    clean_opts.__prev_browse_path = overrides.__prev_browse_path
+  else
+    clean_opts.__prev_browse_path = opts.__prev_browse_path or (base and base.__prev_browse_path)
+  end
   clean_opts.actions = overrides.actions
   clean_opts.fzf_opts = overrides.fzf_opts
   clean_opts.previewer = overrides.previewer
@@ -83,12 +88,50 @@ function M.goto_home_dir(_, opts)
   reopen(opts, { root_cwd = root_cwd, path = home, cwd = home, query = "" })
 end
 
----Go to current working directory (vim.fn.getcwd())
+---Toggle navigation between session cwd (root_cwd) and previous/buffer directory
 ---@param _ string[]
 ---@param opts table
 function M.goto_cwd(_, opts)
   local root_cwd = utils.get_root_cwd(opts)
-  reopen(opts, { root_cwd = root_cwd, path = root_cwd, cwd = root_cwd, query = "" })
+  local current_path = utils.get_browse_path(opts)
+  local base = opts.__browse_opts or opts
+
+  if current_path ~= root_cwd then
+    reopen(opts, {
+      root_cwd = root_cwd,
+      path = root_cwd,
+      cwd = root_cwd,
+      __prev_browse_path = current_path,
+      query = "",
+    })
+  else
+    local dest = opts.__prev_browse_path or (base and base.__prev_browse_path)
+    if not dest or dest == "" or dest == root_cwd then
+      if vim.fn.expand("%:p") ~= "" then
+        local buf_dir = utils.normalize_path(vim.fn.expand("%:p:h"))
+        if utils.is_dir(buf_dir) and buf_dir ~= root_cwd then
+          dest = buf_dir
+        end
+      end
+    end
+
+    if dest and dest ~= "" and dest ~= root_cwd then
+      reopen(opts, {
+        root_cwd = root_cwd,
+        path = dest,
+        cwd = dest,
+        __prev_browse_path = root_cwd,
+        query = "",
+      })
+    else
+      reopen(opts, {
+        root_cwd = root_cwd,
+        path = root_cwd,
+        cwd = root_cwd,
+        query = "",
+      })
+    end
+  end
 end
 
 ---Change Neovim's working directory (:cd)
@@ -433,7 +476,7 @@ function M.keymaps_help(_, opts)
     "ctrl-g           │ Toggle grouping directories first",
     "ctrl-s           │ Toggle all filters (show all hidden/ignored)",
     "ctrl-w           │ Change Neovim cwd to current browser directory",
-    "ctrl-b           │ Navigate to Neovim cwd",
+    "ctrl-b           │ Toggle navigation between Neovim cwd and previous/buffer dir",
     "ctrl-e           │ Navigate to home directory (~)",
     "ctrl-o           │ Open selected file/directory",
     "alt-enter        │ Create file/directory from prompt text",
