@@ -92,42 +92,42 @@ end
 ---@param _ string[]
 ---@param opts table
 function M.goto_cwd(_, opts)
-  local root_cwd = utils.get_root_cwd(opts)
+  local target_cwd = utils.get_root_cwd(opts)
   local current_path = utils.get_browse_path(opts)
   local base = opts.__browse_opts or opts
 
-  if current_path ~= root_cwd then
+  if current_path ~= target_cwd then
     reopen(opts, {
-      root_cwd = root_cwd,
-      path = root_cwd,
-      cwd = root_cwd,
+      root_cwd = target_cwd,
+      path = target_cwd,
+      cwd = target_cwd,
       __prev_browse_path = current_path,
       query = "",
     })
   else
     local dest = opts.__prev_browse_path or (base and base.__prev_browse_path)
-    if not dest or dest == "" or dest == root_cwd then
+    if not dest or dest == "" or dest == target_cwd then
       if vim.fn.expand("%:p") ~= "" then
         local buf_dir = utils.normalize_path(vim.fn.expand("%:p:h"))
-        if utils.is_dir(buf_dir) and buf_dir ~= root_cwd then
+        if utils.is_dir(buf_dir) and buf_dir ~= target_cwd then
           dest = buf_dir
         end
       end
     end
 
-    if dest and dest ~= "" and dest ~= root_cwd then
+    if dest and dest ~= "" and dest ~= target_cwd then
       reopen(opts, {
-        root_cwd = root_cwd,
+        root_cwd = target_cwd,
         path = dest,
         cwd = dest,
-        __prev_browse_path = root_cwd,
+        __prev_browse_path = target_cwd,
         query = "",
       })
     else
       reopen(opts, {
-        root_cwd = root_cwd,
-        path = root_cwd,
-        cwd = root_cwd,
+        root_cwd = target_cwd,
+        path = target_cwd,
+        cwd = target_cwd,
         query = "",
       })
     end

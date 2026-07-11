@@ -216,16 +216,26 @@ function M.browse(opts)
     opts.actions["<bs>"] = nil
     opts.actions["<BS>"] = nil
   end
-  if type(opts.keymap) == "table" then
-    if type(opts.keymap.fzf) == "table" then
-      opts.keymap.fzf["bspace"] = nil
-      opts.keymap.fzf["<bs>"] = nil
-      opts.keymap.fzf["<BS>"] = nil
-    end
-    if type(opts.keymap.builtin) == "table" then
-      opts.keymap.builtin["bspace"] = nil
-      opts.keymap.builtin["<bs>"] = nil
-      opts.keymap.builtin["<BS>"] = nil
+  opts.keymap = opts.keymap or {}
+  opts.keymap.fzf = opts.keymap.fzf or {}
+  opts.keymap.builtin = opts.keymap.builtin or {}
+  opts.keymap.fzf["bspace"] = nil
+  opts.keymap.fzf["<bs>"] = nil
+  opts.keymap.fzf["<BS>"] = nil
+  opts.keymap.builtin["bspace"] = nil
+  opts.keymap.builtin["<bs>"] = nil
+  opts.keymap.builtin["<BS>"] = nil
+
+  if type(opts.actions) == "table" then
+    for k, _ in pairs(opts.actions) do
+      if k ~= "default" and k ~= "right" and k ~= "left" then
+        if opts.keymap.fzf[k] == nil then
+          opts.keymap.fzf[k] = false
+        end
+        if opts.keymap.builtin[k] == nil then
+          opts.keymap.builtin[k] = false
+        end
+      end
     end
   end
 
