@@ -48,7 +48,7 @@ local function get_actions(custom_actions, opts)
     ["default"]     = actions.enter,
     ["right"]       = actions.enter,
     ["left"]        = wrap_action(actions.goto_parent_dir),
-    ["bspace"]      = wrap_action(actions.backspace_or_parent),
+    ["_bspace"]     = wrap_action(actions.goto_parent_dir),
     ["ctrl-a"]      = actions.create,
     ["alt-c"]       = actions.create,
     ["alt-enter"]   = actions.create_from_prompt,
@@ -178,6 +178,7 @@ function M.browse(opts)
       ["alt-b"]      = "page-up",
       ["page-down"]  = "page-down",
       ["page-up"]    = "page-up",
+      ["bspace"]     = "transform:[[ -n {q} ]] && echo backward-delete-char || echo 'print(_bspace)+accept'",
     },
     builtin = {
       ["<C-d>"]      = "preview-page-down",
