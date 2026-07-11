@@ -18,30 +18,28 @@ utils.create_path(utils.join_paths(tmpdir, "a_file.txt"), false)
 utils.create_path(utils.join_paths(tmpdir, "b_folder/nested.txt"), false)
 
 -- Test flat scan (depth = 1)
-local results = {}
-local done = false
-finder.get_contents({ cwd = tmpdir, depth = 1 })(function(entry)
-  if entry == nil then done = true else table.insert(results, entry) end
-end)
-vim.wait(1000, function() return done end, 10)
-assert_true(#results >= 5, "flat scan should collect immediate items")
+local cmd_flat = finder.get_cmd({ cwd = tmpdir, depth = 1 })
+assert_true(type(cmd_flat) == "string" and #cmd_flat > 0, "finder.get_cmd should return a non-empty shell command string")
+local output_flat = vim.fn.system(string.format("cd %s && %s", vim.fn.shellescape(tmpdir), cmd_flat))
+local lines_flat = vim.split(vim.trim(output_flat), "\n", { trimempty = true })
+assert_true(#lines_flat >= 5, "flat scan command should output immediate items including parent dir")
 
 -- Test recursive scan (depth = false)
-local rec_results = {}
-local rec_done = false
-finder.get_contents({ cwd = tmpdir, depth = false })(function(entry)
-  if entry == nil then rec_done = true else table.insert(rec_results, entry) end
-end)
-vim.wait(1000, function() return rec_done end, 10)
+local cmd_rec = finder.get_cmd({ cwd = tmpdir, depth = false })
+assert_true(type(cmd_rec) == "string" and not cmd_rec:find("max%-depth") and not cmd_rec:find("maxdepth"), "recursive scan command should not have depth limit flags")
+local output_rec = vim.fn.system(string.format("cd %s && %s", vim.fn.shellescape(tmpdir), cmd_rec))
 
 local found_nested = false
-for _, res in ipairs(rec_results) do
-  if res:find("b_folder/nested%.txt") then
+for _, res in ipairs(vim.split(output_rec, "\n")) do
+  if res:find("b_folder/nested%.txt") or res:find("b_folder\\nested%.txt") then
     found_nested = true
     break
   end
 end
 assert_true(found_nested, "recursive scan (depth = false) should find nested file b_folder/nested.txt")
+
+-- Verify get_contents returns same command string
+assert_true(finder.get_contents({ cwd = tmpdir, depth = 1 }) == cmd_flat, "get_contents should return the command string")
 
 -- Test previewer entry_to_file path extraction
 local previewer = require("fzf-lua-file-browser.previewer")

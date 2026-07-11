@@ -26,6 +26,7 @@ local function reopen(opts, overrides)
   clean_opts._is_fzf_lua_picker = nil
   clean_opts.fn_reload = nil
   clean_opts.contents = nil
+  clean_opts.cmd = nil
   clean_opts.winopts = vim.tbl_deep_extend("force", { reuse = true }, clean_opts.winopts or {})
   vim.schedule(function()
     require("fzf-lua-file-browser").browse(clean_opts)

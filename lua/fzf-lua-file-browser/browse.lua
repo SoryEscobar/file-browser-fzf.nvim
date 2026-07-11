@@ -135,6 +135,7 @@ function M.browse(opts)
     pristine.fzf_opts = nil
     pristine.previewer = nil
     pristine.keymap = nil
+    pristine.cmd = nil
     opts.__browse_opts = pristine
   end
 
@@ -217,8 +218,14 @@ function M.browse(opts)
     end
   end
 
-  -- Use fzf-lua core executor
-  return fzf.fzf_exec(finder.get_contents(opts), opts)
+  -- Configure fzf-lua entry transformation for fast asynchronous external command output matching fzf-lua files
+  opts._type = "file"
+  opts.file_icons = opts.file_icons ~= false
+  opts.color_icons = opts.color_icons ~= false
+  opts.strip_cwd_prefix = true
+
+  local cmd = finder.get_cmd(opts)
+  return fzf.fzf_exec(cmd, opts)
 end
 
 M.get_actions = get_actions
