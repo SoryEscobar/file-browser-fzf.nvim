@@ -26,7 +26,8 @@ It provides a 100% equivalent workflow to [`telescope-file-browser.nvim`](https:
   - **Rename** (`<C-r>` / `<A-r>`): Rename single or multi-selected items with automatic Neovim 0.10+ LSP rename notification (`workspace/didRenameFiles`).
   - **Move** (`<C-j>` / `<A-m>`): Move selected items to any target directory.
   - **Copy** (`<C-y>` / `<A-y>`): Recursive copy of selected files or directories.
-  - **Delete** (`<C-x>` / `<A-d>`): Confirm and delete single or multi-selected items.
+  - **Delete** (`<A-d>`): Confirm and delete single or multi-selected items.
+  - **Open Split / Tab** (`<C-x>`, `<C-v>`, `<C-t>`): Open selected file in split, vsplit, or new tab.
   - **Open** (`<C-o>`): Open files or folders with system default applications (`xdg-open` / macOS `open`).
 - **🎮 Built-in Shortcuts Cheat Sheet Modal**:
   - Press `<C-k>` inside the browser to open an interactive floating cheat sheet listing all available keybinds with short descriptions.
@@ -152,7 +153,10 @@ require("fzf-lua-file-browser").setup({
 | `<C-r>` / `<A-r>` | `rename` | Rename single or multi-selected files/folders (+ LSP hook) |
 | `<C-j>` / `<A-m>` | `move` | Move selected item(s) to target directory |
 | `<C-y>` / `<A-y>` | `copy` | Copy selected item(s) to target directory |
-| `<C-x>` / `<A-d>` | `remove` | Delete selected item(s) with confirmation dialog |
+| `<A-d>` | `remove` | Delete selected item(s) with confirmation dialog |
+| `<C-x>` | `file_split` | Open file in horizontal split (or enter directory) |
+| `<C-v>` | `file_vsplit` | Open file in vertical split (or enter directory) |
+| `<C-t>` | `file_tabedit` | Open file in new tab (or enter directory) |
 | `<C-w>` | `change_cwd` | Change Neovim's working directory (`:cd`) |
 | `<C-b>` | `goto_cwd` | Navigate to Neovim current working directory |
 | `<C-e>` | `goto_home_dir` | Navigate to home directory (`~`) |

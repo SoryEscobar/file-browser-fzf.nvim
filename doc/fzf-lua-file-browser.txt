@@ -85,7 +85,10 @@ Keybind          Action                     Description
 <C-r> / <A-r>    rename                     Rename selected item(s) (+ LSP hook)
 <C-j> / <A-m>    move                       Move selected item(s) to directory
 <C-y> / <A-y>    copy                       Copy selected item(s) to directory
-<C-x> / <A-d>    remove                     Remove item(s) with confirmation
+<A-d>            remove                     Remove item(s) with confirmation
+<C-x>            file_split                 Open file in horizontal split
+<C-v>            file_vsplit                Open file in vertical split
+<C-t>            file_tabedit               Open file in new tab
 <C-w>            change_cwd                 Change Neovim cwd (:cd)
 <C-b>            goto_cwd                   Go to Neovim working directory
 <C-e>            goto_home_dir              Go to home directory (~)

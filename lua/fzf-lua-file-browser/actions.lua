@@ -69,6 +69,54 @@ function M.enter(selected, opts)
   end
 end
 
+---Open file in horizontal split (or enter directory)
+---@param selected string[]
+---@param opts table
+function M.file_split(selected, opts)
+  local browse_path = utils.get_browse_path(opts)
+  local root_cwd = utils.get_root_cwd(opts)
+  if not selected or #selected == 0 then return end
+
+  local parsed = utils.parse_entry(selected[1], browse_path)
+  if parsed.is_dir then
+    reopen(opts, { root_cwd = root_cwd, path = parsed.path, cwd = parsed.path, query = "" })
+  else
+    vim.cmd("split " .. vim.fn.fnameescape(parsed.path))
+  end
+end
+
+---Open file in vertical split (or enter directory)
+---@param selected string[]
+---@param opts table
+function M.file_vsplit(selected, opts)
+  local browse_path = utils.get_browse_path(opts)
+  local root_cwd = utils.get_root_cwd(opts)
+  if not selected or #selected == 0 then return end
+
+  local parsed = utils.parse_entry(selected[1], browse_path)
+  if parsed.is_dir then
+    reopen(opts, { root_cwd = root_cwd, path = parsed.path, cwd = parsed.path, query = "" })
+  else
+    vim.cmd("vsplit " .. vim.fn.fnameescape(parsed.path))
+  end
+end
+
+---Open file in new tab (or enter directory)
+---@param selected string[]
+---@param opts table
+function M.file_tabedit(selected, opts)
+  local browse_path = utils.get_browse_path(opts)
+  local root_cwd = utils.get_root_cwd(opts)
+  if not selected or #selected == 0 then return end
+
+  local parsed = utils.parse_entry(selected[1], browse_path)
+  if parsed.is_dir then
+    reopen(opts, { root_cwd = root_cwd, path = parsed.path, cwd = parsed.path, query = "" })
+  else
+    vim.cmd("tabedit " .. vim.fn.fnameescape(parsed.path))
+  end
+end
+
 ---Go to parent directory
 ---@param _ string[]
 ---@param opts table
@@ -469,7 +517,10 @@ function M.keymaps_help(_, opts)
     "ctrl-r / alt-r   │ Rename selected item(s)",
     "ctrl-y / alt-y   │ Copy selected item(s) to directory",
     "ctrl-j / alt-m   │ Move selected item(s) to directory",
-    "ctrl-x / alt-d   │ Remove selected item(s)",
+    "alt-d            │ Remove selected item(s)",
+    "ctrl-x           │ Open selected file in horizontal split",
+    "ctrl-v           │ Open selected file in vertical split",
+    "ctrl-t           │ Open selected file in new tab",
     "ctrl-h           │ Toggle hidden files/folders",
     "ctrl-i           │ Toggle gitignore filtering",
     "ctrl-l           │ Toggle recursive directory scanning",
