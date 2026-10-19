@@ -18,10 +18,16 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install dependencies (ripgrep, eza)
+      - name: Install dependencies (fzf, fd, ripgrep)
         run: |
           sudo apt-get update
-          sudo apt-get install -y ripgrep
+          sudo apt-get install -y ripgrep fd-find
+          # Ubuntu's fzf is too old for trigger(); use the upstream release
+          curl -fsSL https://github.com/junegunn/fzf/releases/download/v0.67.0/fzf-0.67.0-linux_amd64.tar.gz \
+            | sudo tar -xz -C /usr/local/bin fzf
+
+      - name: Fetch fzf-lua (tests/minimal_init.lua loads it from .reference/)
+        run: git clone --depth 1 https://github.com/ibhagwan/fzf-lua .reference/fzf-lua
 
       - name: Setup Neovim
         uses: rhysd/action-setup-vim@v1

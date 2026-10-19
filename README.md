@@ -41,7 +41,8 @@ It provides a 100% equivalent workflow to [`telescope-file-browser.nvim`](https:
 
 ## 📋 Requirements
 
-- **Neovim** >= 0.9.0 (0.10+ recommended for LSP file rename notifications)
+- **Neovim** >= 0.10.0 (`lsp.lua` needs `vim.lsp.protocol.Methods`)
+- **fzf** >= 0.59 for "Backspace on an empty prompt goes to the parent directory" (older fzf: plain backspace)
 - **[`fzf-lua`](https://github.com/ibhagwan/fzf-lua)**
 - **[`nvim-web-devicons`](https://github.com/nvim-tree/nvim-web-devicons)** (optional, for icons)
 
@@ -77,13 +78,6 @@ return {
           require("fzf-lua-file-browser").browse({ cwd = vim.fn.expand("%:p:h") })
         end,
         desc = "File Browser (Buffer Dir)",
-      },
-      {
-        "<space>fb",
-        function()
-          require("fzf-lua-file-browser").browse()
-        end,
-        desc = "FzfLua File Browser",
       },
     },
   },
@@ -147,7 +141,7 @@ require("fzf-lua-file-browser").setup({
 | `<C-f>` / `<A-b>` | `page-down` / `page-up` | **Scroll left listings panel down / up (Page)** |
 | `<CR>` / `<Right>` | `enter` | Enter directory (`cwd = dir`) or edit file |
 | `<Left>` | `goto_parent_dir` | Navigate to parent directory (`../`) |
-| `<BS>` | `native backspace` | Delete backward character from prompt without UI re-render |
+| `<BS>` | `native backspace` | Delete backward character; on an empty prompt go to the parent dir (fzf >= 0.59) |
 | `<C-a>` / `<A-c>` | `create` | Create file/dir (supports nested path creation `dir/sub/file.txt` & opens immediately in buffer) |
 | `<S-CR>` / `<C-n>` | `create_from_prompt` | Create file/folder from typed prompt text & open buffer |
 | `<C-r>` / `<A-r>` | `rename` | Rename single or multi-selected files/folders (+ LSP hook) |
@@ -161,7 +155,7 @@ require("fzf-lua-file-browser").setup({
 | `<C-b>` | `goto_cwd` | Navigate to Neovim current working directory |
 | `<C-e>` | `goto_home_dir` | Navigate to home directory (`~`) |
 | `<C-h>` | `toggle_hidden` | Toggle hidden dotfiles display |
-| `<C-i>` | `toggle_gitignore` | Toggle gitignore filtering |
+| `<M-i>` | `toggle_gitignore` | Toggle gitignore filtering |
 | `<C-l>` | `toggle_depth` | Toggle recursive directory scanning |
 | `<C-g>` | `toggle_grouping` | Toggle grouping directories first |
 | `<C-s>` | `toggle_all` | Toggle all filters (show all hidden/ignored) |

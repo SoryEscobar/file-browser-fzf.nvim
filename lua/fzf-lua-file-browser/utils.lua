@@ -3,6 +3,15 @@ local M = {}
 local uv = vim.uv or vim.loop
 local lsp = require("fzf-lua-file-browser.lsp")
 
+M.__IS_WINDOWS = vim.fn.has("win32") == 1 or vim.fn.has("win64") == 1
+
+-- fzf-lua separates icons from the path with its own `nbsp` (U+2002 EN SPACE in current
+-- releases, U+00A0 in older ones). Read it from fzf-lua so we always match what it emits.
+local NBSP = (function()
+  local ok, fzf_utils = pcall(require, "fzf-lua.utils")
+  return ok and fzf_utils.nbsp or "\226\128\130"
+end)()
+
 ---Normalize path separators and remove trailing slash (unless root)
 ---@param path string
 ---@return string
@@ -10,8 +19,10 @@ function M.normalize_path(path)
   if not path or path == "" then
     return ""
   end
-  -- Replace backslashes on non-windows if needed, or unify separators
-  path = path:gsub("\\", "/")
+  -- Unify separators on Windows only: on unix "\\" is a legal filename character
+  if M.__IS_WINDOWS then
+    path = path:gsub("\\", "/")
+  end
   -- Remove duplicate slashes
   path = path:gsub("//+", "/")
   if #path > 1 and path:sub(-1) == "/" then
@@ -58,18 +69,39 @@ function M.path_exists(path)
   if not path or path == "" then
     return false
   end
-  local stat = uv.fs_stat(M.normalize_path(path))
+  -- lstat first so broken symlinks count as existing (they can still be deleted/renamed)
+  local p = M.normalize_path(path)
+  local stat = uv.fs_lstat(p) or uv.fs_stat(p)
   if not stat then
     return false, nil
   end
   return true, stat.type
 end
 
+---Make a path absolute: expands "~" and resolves relative paths against `base` (or :pwd)
+---@param path string
+---@param base string?
+---@return string
+function M.absolute(path, base)
+  if not path or path == "" then
+    return M.normalize_path(base or vim.fn.getcwd())
+  end
+  if path == "~" or path:sub(1, 2) == "~/" then
+    path = vim.fn.expand("~") .. path:sub(2)
+  end
+  local is_abs = path:sub(1, 1) == "/" or (M.__IS_WINDOWS and path:match("^%a:[/\\]") ~= nil)
+  if not is_abs then
+    path = ((base and base ~= "") and base or vim.fn.getcwd()) .. "/" .. path
+  end
+  -- expand_env=false: "$" is a legal filename character ("~" was handled above)
+  return M.normalize_path(vim.fs.normalize(vim.fn.fnamemodify(path, ":p"), { expand_env = false }))
+end
+
 ---Get parent directory of a path
 ---@param path string
 ---@return string
 function M.parent_dir(path)
-  local p = M.normalize_path(path)
+  local p = M.absolute(path)
   local parent = vim.fn.fnamemodify(p, ":h")
   return M.normalize_path(parent)
 end
@@ -79,53 +111,52 @@ end
 ---@return string
 function M.strip_ansi(str)
   if not str then return "" end
-  return str:gsub("\27%[[0-9;]*m", ""):gsub("\27%[[0-9;]*[a-zA-Z]", "")
+  -- CSI sequences incl. colon-separated SGR (\27[38:5:113m) and private modes (\27[?25h)
+  return (str:gsub("\27%[[%d;:?]*%a", ""))
 end
 
----Strip fzf-lua icon prefix, unicode space separators (EN SPACE U+2002 \226\128\130, NBSP U+00A0 \194\160), and ANSI coloring from an entry string
+---Strip fzf-lua icon prefix and ANSI coloring from an entry string without corrupting spaces or UTF-8
 ---@param entry string
+---@param opts table?
 ---@return string
-function M.strip_icon_prefix(entry)
+function M.strip_icon_prefix(entry, opts)
   if not entry or entry == "" then return "" end
   local clean = M.strip_ansi(entry)
-  clean = clean:match("^[^\t]+") or clean
-
-  -- 1. If fzf-lua's path.entry_to_file is available, let it parse first
-  local ok_fzf, fzf_path = pcall(require, "fzf-lua.path")
-  if ok_fzf and fzf_path and type(fzf_path.entry_to_file) == "function" then
-    local parsed = fzf_path.entry_to_file(clean, {})
-    if parsed and parsed.path and #parsed.path > 0 then
-      clean = parsed.path
+  -- Remove fzf-lua's "[git_icon NBSP][file_icon NBSP]" prefix. An icon is short and never
+  -- contains "/", which keeps a filename that happens to contain NBSP from being eaten.
+  -- Do NOT trim or split on whitespace: spaces/tabs are legal in filenames.
+  -- fzf-lua resets file_icons to nil when no icon provider loads, so the picker opts tell us
+  -- exactly how many prefixes there are; without opts assume up to two (git + file icon)
+  local n_prefix = 2
+  if type(opts) == "table" and (opts._type ~= nil or opts.file_icons ~= nil or opts.git_icons ~= nil) then
+    n_prefix = (opts.git_icons and 1 or 0) + (opts.file_icons and 1 or 0)
+  end
+  local stripped_nbsp = false
+  for _ = 1, n_prefix do
+    local s, e = clean:find(NBSP, 1, true)
+    if not s or s > 17 or clean:sub(1, s - 1):find("/", 1, true) then
+      break
     end
+    clean = clean:sub(e + 1)
+    stripped_nbsp = true
   end
-
-  -- 2. Strip fzf-lua non-breaking space / en-space separators (\226\128\130 U+2002, \194\160 U+00A0)
-  if clean:find("\226\128\130", 1, true) then
-    local parts = vim.split(clean, "\226\128\130", { plain = true })
-    clean = parts[#parts]
-  elseif clean:find("\194\160", 1, true) then
-    local parts = vim.split(clean, "\194\160", { plain = true })
-    clean = parts[#parts]
+  if not stripped_nbsp and n_prefix > 0 then
+    clean = clean:gsub("^[\238\239][\128-\191][\128-\191]+ +", "")
   end
-
-  -- 3. If there is still a leading non-ASCII symbol (e.g. Nerd Font icon byte >= 0x80) followed by spaces, strip it
-  if clean:byte(1) and clean:byte(1) >= 0x80 then
-    clean = clean:gsub("^[\128-\255]+%s*", "")
-  end
-
-  return vim.trim(clean)
+  return clean
 end
 
 ---Parse an entry selected in fzf-lua into absolute path and type
 ---@param entry string
 ---@param cwd string
+---@param opts table? picker opts: used to know how many icon prefixes fzf-lua added
 ---@return table { path: string, relpath: string, is_dir: boolean, is_parent: boolean }
-function M.parse_entry(entry, cwd)
+function M.parse_entry(entry, cwd, opts)
   if not entry then
     return { path = cwd, relpath = ".", is_dir = true, is_parent = false }
   end
 
-  local clean = M.strip_icon_prefix(entry)
+  local clean = M.strip_icon_prefix(entry, opts)
 
   if clean == "../" or clean == ".." then
     local parent = M.parent_dir(cwd)
@@ -160,9 +191,10 @@ function M.ensure_dir(dir)
   if M.is_dir(p) then
     return true
   end
-  local ok, err = vim.fn.mkdir(p, "p")
-  if ok == 0 then
-    return false, "Failed to create directory: " .. p
+  -- vim.fn.mkdir throws (E739) rather than returning 0 on most failures
+  local ok, res = pcall(vim.fn.mkdir, p, "p")
+  if not ok or res == 0 then
+    return false, "Failed to create directory: " .. p .. (ok and "" or (": " .. tostring(res)))
   end
   return true
 end
@@ -174,6 +206,13 @@ end
 function M.create_path(filepath, is_dir)
   local path = M.normalize_path(filepath)
   if is_dir or filepath:sub(-1) == "/" then
+    local exists, st_type = M.path_exists(path)
+    if exists then
+      if st_type ~= "directory" then
+        return false, "A file already exists at: " .. path
+      end
+      return true -- already there: nothing created, so no LSP create events
+    end
     local ok, err = M.ensure_dir(path)
     if ok then
       lsp.will_create_files({ path })
@@ -189,10 +228,15 @@ function M.create_path(filepath, is_dir)
     return false, err
   end
 
+  if M.path_exists(path) then
+    return false, "Already exists: " .. path
+  end
+
   lsp.will_create_files({ path })
-  local fd = uv.fs_open(path, "w", 438) -- 0666
+  -- "wx" = O_CREAT|O_EXCL: never truncate an existing file, even if it appeared after the check
+  local fd, ferr = uv.fs_open(path, "wx", 438) -- 0666
   if not fd then
-    return false, "Failed to open file for creation: " .. path
+    return false, "Failed to create file " .. path .. ": " .. tostring(ferr)
   end
   uv.fs_close(fd)
   lsp.did_create_files({ path })
@@ -207,14 +251,36 @@ function M.rename_path(old_path, new_path)
   local src = M.normalize_path(old_path)
   local dst = M.normalize_path(new_path)
 
-  local parent = M.parent_dir(dst)
-  M.ensure_dir(parent)
+  if src == dst then
+    return true
+  end
+  if not M.path_exists(src) then
+    return false, "Source does not exist: " .. src
+  end
+  -- fs_rename silently replaces an existing file / empty dir: refuse instead. Exception: a
+  -- case-only rename on a case-insensitive FS (macOS default), where dst *is* src
+  if M.path_exists(dst) then
+    local a, b = uv.fs_lstat(src), uv.fs_lstat(dst)
+    local same_file = a and b and a.ino == b.ino and a.dev == b.dev
+    if not (same_file and src:lower() == dst:lower()) then
+      return false, "Destination already exists: " .. dst
+    end
+  end
+  if vim.startswith(dst, src .. "/") then
+    return false, "Cannot move a directory into itself: " .. src
+  end
+
+  local ok_dir, dir_err = M.ensure_dir(M.parent_dir(dst))
+  if not ok_dir then
+    return false, dir_err
+  end
 
   lsp.will_rename_files({ [src] = dst })
   local ok, err = uv.fs_rename(src, dst)
   if not ok then
     return false, err
   end
+  M.rename_buffers(src, dst)
   lsp.did_rename_files({ [src] = dst })
   return true
 end
@@ -230,12 +296,90 @@ function M.delete_path(path)
   end
 
   lsp.will_delete_files({ target })
-  local ok = vim.fn.delete(target, "rf")
+  -- "rf" on a symlink removes the link only; plain delete() is enough for files and links
+  local ok = vim.fn.delete(target, type == "directory" and "rf" or "")
   if ok ~= 0 then
     return false, "Failed to delete: " .. target
   end
+  M.delete_buffers(target)
   lsp.did_delete_files({ target })
   return true
+end
+
+---Buffers whose file is `path` or lives under it
+---@param path string
+---@return integer[]
+local function buffers_under(path)
+  local res = {}
+  for _, b in ipairs(vim.api.nvim_list_bufs()) do
+    local name = vim.api.nvim_buf_get_name(b)
+    -- only real file buffers: nofile/terminal/prompt buffers merely share a name
+    if vim.bo[b].buftype == "" and name ~= "" and (name == path or vim.startswith(name, path .. "/")) then
+      table.insert(res, b)
+    end
+  end
+  return res
+end
+
+---Point open buffers at their new location after a rename/move, so `:w` doesn't
+---resurrect the old path
+---@param src string
+---@param dst string
+function M.rename_buffers(src, dst)
+  for _, b in ipairs(buffers_under(src)) do
+    local name = vim.api.nvim_buf_get_name(b)
+    local new = dst .. name:sub(#src + 1)
+    -- `keepalt file` instead of nvim_buf_set_name: the latter leaves an alternate buffer named
+    -- after the old (now missing) path, which <C-^> / :e # would bring back
+    vim.api.nvim_buf_call(b, function()
+      local renamed = pcall(vim.cmd, "keepalt file " .. vim.fn.fnameescape(new))
+      -- only reload when the rename took: otherwise edit! would reload the now-missing old path.
+      -- The reload clears the "file name changed" (E13) state; modified buffers are left for
+      -- the user to :w!
+      if renamed and vim.api.nvim_buf_is_loaded(b) and not vim.bo[b].modified then
+        vim.cmd("silent! keepalt edit!")
+      end
+    end)
+    local old = vim.fn.bufnr("^" .. vim.fn.escape(name, "\\[]*?~.^$") .. "$")
+    if old > 0 and old ~= b and not vim.api.nvim_buf_is_loaded(old) then
+      pcall(vim.api.nvim_buf_delete, old, { force = true })
+    end
+  end
+end
+
+---Wipe unmodified buffers of deleted files; modified ones are kept so no edits are lost
+---@param path string
+function M.delete_buffers(path)
+  for _, b in ipairs(buffers_under(path)) do
+    if not vim.bo[b].modified then
+      -- keep the window layout: show another buffer in windows displaying b before wiping it
+      for _, w in ipairs(vim.fn.win_findbuf(b)) do
+        vim.api.nvim_win_call(w, function()
+          local alt = vim.fn.bufnr("#")
+          if not (alt > 0 and alt ~= b and vim.fn.buflisted(alt) == 1) then
+            -- fall back to the most recently used listed buffer outside the deleted path
+            alt = nil
+            local infos = vim.fn.getbufinfo({ buflisted = 1 })
+            table.sort(infos, function(x, y)
+              return x.lastused > y.lastused
+            end)
+            for _, info in ipairs(infos) do
+              if info.bufnr ~= b and info.name ~= path and not vim.startswith(info.name, path .. "/") then
+                alt = info.bufnr
+                break
+              end
+            end
+          end
+          if alt then
+            vim.cmd("buffer " .. alt)
+          else
+            vim.cmd("enew")
+          end
+        end)
+      end
+      pcall(vim.api.nvim_buf_delete, b, { force = true })
+    end
+  end
 end
 
 ---Recursive copy file or directory
@@ -250,25 +394,58 @@ function M.copy_path(src, dst)
   if not exists then
     return false, "Source does not exist: " .. source
   end
+  if source == target then
+    return false, "Source and destination are the same: " .. source
+  end
+  if M.path_exists(target) then
+    return false, "Destination already exists: " .. target
+  end
+  if vim.startswith(target, source .. "/") then
+    return false, "Cannot copy a directory into itself: " .. source
+  end
 
-  if st_type == "directory" then
-    M.ensure_dir(target)
+  local ok_dir, dir_err = M.ensure_dir(M.parent_dir(target))
+  if not ok_dir then
+    return false, dir_err
+  end
+
+  if st_type == "link" then
+    -- copy the link itself: following it can recurse forever (dir -> .) or copy a whole tree
+    local link_target, rerr = uv.fs_readlink(source)
+    if not link_target then
+      return false, rerr
+    end
+    local ok, err = uv.fs_symlink(link_target, target)
+    if not ok then
+      return false, err
+    end
+    return true
+  elseif st_type == "directory" then
+    local ok_mk, mk_err = M.ensure_dir(target)
+    if not ok_mk then
+      return false, mk_err
+    end
+    -- list entries before writing anything so the copy can't observe itself
+    local names = {}
     local handle = uv.fs_scandir(source)
     if handle then
       while true do
-        local name, type = uv.fs_scandir_next(handle)
+        local name = uv.fs_scandir_next(handle)
         if not name then break end
-        local ok, err = M.copy_path(M.join_paths(source, name), M.join_paths(target, name))
-        if not ok then
-          return false, err
-        end
+        table.insert(names, name)
+      end
+    end
+    for _, name in ipairs(names) do
+      local ok, err = M.copy_path(M.join_paths(source, name), M.join_paths(target, name))
+      if not ok then
+        -- target did not exist before this call: drop the partial tree so a retry isn't refused
+        vim.fn.delete(target, "rf")
+        return false, err
       end
     end
     return true
   else
-    local parent = M.parent_dir(target)
-    M.ensure_dir(parent)
-    local ok, err = uv.fs_copyfile(source, target)
+    local ok, err = uv.fs_copyfile(source, target, { excl = true })
     if not ok then
       return false, err
     end
@@ -319,6 +496,8 @@ function M.picker_input(opts, on_submit)
   fzf.fzf_exec(items, {
     prompt = opts.prompt or "Input> ",
     query = opts.default or "",
+    -- the "hide" profile replaces esc with its own action, which would skip on_submit(nil)
+    no_hide = true,
     fzf_opts = {
       ["--print-query"] = true,
     },
@@ -331,7 +510,8 @@ function M.picker_input(opts, on_submit)
     actions = {
       ["default"] = function(selected, o)
         local val = o and o.last_query
-        if (not val or val == "") and selected and selected[1] then
+        -- an untouched (or cleared) prompt means the user picked a suggestion with the cursor
+        if (not val or val == "" or val == opts.default) and selected and selected[1] then
           val = selected[1]
         end
         on_submit(val)

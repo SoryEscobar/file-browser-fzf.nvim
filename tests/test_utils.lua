@@ -15,22 +15,41 @@ assert_eq("/", utils.normalize_path("/"), "normalize_path root")
 -- Test join_paths
 assert_eq("/tmp/test/dir", utils.join_paths("/tmp", "test/", "/dir/"), "join_paths")
 
--- Test parse_entry
+-- Test parse_entry with entries exactly as fzf-lua emits them: plain "name" when icons are
+-- off, "<ansi icon><fzf-lua nbsp>name" when on (nbsp is U+2002, not U+00A0)
+local NBSP = require("fzf-lua.utils").nbsp
+local function icon(name)
+  return "\27[38;5;74m\238\152\160\27[0m" .. NBSP .. name
+end
 local cwd = "/workspace"
-local p1 = utils.parse_entry("  ../", cwd)
+local p1 = utils.parse_entry("../", cwd)
 assert_eq(true, p1.is_dir, "parse_entry ../ is_dir")
 assert_eq(true, p1.is_parent, "parse_entry ../ is_parent")
 assert_eq("..", p1.relpath, "parse_entry ../ relpath")
 
-local p2 = utils.parse_entry("  src/", cwd)
+local p2 = utils.parse_entry(icon("src/"), cwd)
 assert_eq(true, p2.is_dir, "parse_entry src/ is_dir")
 assert_eq("src/", p2.relpath, "parse_entry src/ relpath")
 assert_eq("/workspace/src", p2.path, "parse_entry src/ path")
 
-local p3 = utils.parse_entry("  init.lua", cwd)
+local p3 = utils.parse_entry(icon("init.lua"), cwd)
 assert_eq(false, p3.is_dir, "parse_entry init.lua is_dir")
 assert_eq("init.lua", p3.relpath, "parse_entry init.lua relpath")
 assert_eq("/workspace/init.lua", p3.path, "parse_entry init.lua path")
+
+local p4 = utils.parse_entry("my file.txt", cwd)
+assert_eq("my file.txt", p4.relpath, "parse_entry keeps spaces without icons")
+local p5 = utils.parse_entry(icon("dir with space/"), cwd)
+assert_eq("/workspace/dir with space", p5.path, "parse_entry keeps spaces with icons")
+local p6 = utils.parse_entry("voil\195\160.txt", cwd)
+assert_eq("voil\195\160.txt", p6.relpath, "parse_entry keeps UTF-8 names containing byte 0xA0")
+assert_eq(true, utils.parse_entry(icon("../"), cwd).is_parent, "parse_entry ../ with icon")
+
+-- Relative / "~" paths are made absolute so parent navigation can't get stuck
+assert_eq(utils.parent_dir(vim.fn.getcwd()), utils.parent_dir("."), "parent_dir of relative path")
+assert_eq(vim.fn.expand("~") .. "/x", utils.absolute("~/x"), "absolute expands ~")
+assert_eq("/base/sub", utils.absolute("sub", "/base"), "absolute resolves against base")
+assert_eq("/abs", utils.absolute("/abs", "/base"), "absolute keeps absolute paths")
 
 -- Test file system operations in temp directory
 local tmpdir = vim.fn.tempname()

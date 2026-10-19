@@ -23,12 +23,5 @@ return {
       end,
       desc = "File Browser (Buffer Dir)",
     },
-    {
-      "<space>fb",
-      function()
-        require("fzf-lua-file-browser").browse()
-      end,
-      desc = "FzfLua File Browser",
-    },
   },
 }

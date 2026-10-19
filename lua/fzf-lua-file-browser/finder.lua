@@ -34,9 +34,8 @@ function M.get_cmd(opts)
       table.insert(flags, "--no-ignore")
     end
 
-    if not opts.hidden then
-      table.insert(flags, "--exclude .git --exclude .jj")
-    end
+    -- VCS internals are noise in either mode; with --hidden fd would otherwise list all of .git/
+    table.insert(flags, "--exclude .git --exclude .jj")
 
     -- Depth handling: false means recursive (no max-depth limit)
     if opts.depth ~= false then
@@ -51,7 +50,8 @@ function M.get_cmd(opts)
     elseif opts.files_only then
       return parent_prefix .. base_cmd .. " --type f --type l"
     elseif opts.grouped ~= false then
-      return string.format("%s( %s --type d && %s --type f --type l )", parent_prefix, base_cmd, base_cmd)
+      -- ";" not "&&": a non-zero exit from the dirs pass must not suppress the files pass
+      return string.format("%s( %s --type d ; %s --type f --type l )", parent_prefix, base_cmd, base_cmd)
     else
       return parent_prefix .. base_cmd
     end
@@ -66,7 +66,7 @@ function M.get_cmd(opts)
   if not opts.hidden then
     table.insert(flags, "-not -path '*/.*'")
   end
-  table.insert(flags, "-not -path '*/.git/*'")
+  table.insert(flags, "-not -name .git -not -path '*/.git/*' -not -name .jj -not -path '*/.jj/*'")
 
   local flag_str = table.concat(flags, " ")
   if flag_str ~= "" then
@@ -79,7 +79,7 @@ function M.get_cmd(opts)
     return string.format("%sfind . -mindepth 1%s \\( -type f -o -type l \\) -print", parent_prefix, flag_str)
   elseif opts.grouped ~= false then
     return string.format(
-      "%s( find . -mindepth 1%s -type d -exec printf '%%s/\\n' {} + && find . -mindepth 1%s \\( -type f -o -type l \\) -print )",
+      "%s( find . -mindepth 1%s -type d -exec printf '%%s/\\n' {} + ; find . -mindepth 1%s \\( -type f -o -type l \\) -print )",
       parent_prefix,
       flag_str,
       flag_str

@@ -93,7 +93,7 @@ Keybind          Action                     Description
 <C-b>            goto_cwd                   Go to Neovim working directory
 <C-e>            goto_home_dir              Go to home directory (~)
 <C-h>            toggle_hidden              Toggle hidden dotfiles display
-<C-i>            toggle_gitignore           Toggle gitignore filtering
+<M-i>            toggle_gitignore           Toggle gitignore filtering
 <C-l>            toggle_depth               Toggle recursive folder scanning
 <C-g>            toggle_grouping            Toggle directories first grouping
 <C-s>            toggle_all                 Toggle all filters (show all)
@@ -107,7 +107,7 @@ Keybind          Action                     Description
 <C-h>            toggle_hidden              Toggle showing hidden dotfiles
 <C-f>            toggle_browser             Toggle directories only vs all
 <Left>           goto_parent_dir            Go to parent directory (../)
-<BS>             native backspace           Delete backward character from prompt
+<BS>             native backspace           Delete backward char; parent dir if empty
 
 ==============================================================================
 6. LAZYVIM INTEGRATION                           *fzf-lua-file-browser-lazyvim*
@@ -121,7 +121,6 @@ Drop-in LazyVim spec:
       keys = {
         { "<leader>fB", function() require("fzf-lua-file-browser").browse({ cwd = vim.fn.getcwd() }) end, desc = "File Browser (Root Dir)" },
         { "<leader>fb", function() require("fzf-lua-file-browser").browse({ cwd = vim.fn.expand("%:p:h") }) end, desc = "File Browser (Buffer Dir)" },
-        { "<space>fb", function() require("fzf-lua-file-browser").browse() end, desc = "FzfLua File Browser" },
       },
     }
 <

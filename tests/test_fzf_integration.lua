@@ -35,7 +35,11 @@ fzf.fzf_exec = orig_fzf_exec
 
 assert(intercepted_opts.is_live == nil, "is_live should be stripped so typing does not re-render UI")
 assert(intercepted_opts.actions["bspace"] == nil, "actions.bspace should be stripped so Backspace uses native fzf backward-delete-char")
-assert(intercepted_opts.keymap.fzf["bspace"] == nil, "keymap.fzf.bspace should be stripped")
+-- the user's "dummy" bind is replaced by the native in-fzf transform (no picker re-render)
+local bs = intercepted_opts.keymap.fzf["bspace"]
+assert(bs ~= "dummy", "user keymap.fzf.bspace should be stripped")
+assert(bs == nil or bs:find("^transform:") ~= nil, "bspace should be a native fzf transform")
+assert(intercepted_opts.fzf_opts["--multi"] == true, "--multi must be on for Tab multi-select")
 
 -- Schedule verification and simulate reopen cycles
 vim.defer_fn(function()

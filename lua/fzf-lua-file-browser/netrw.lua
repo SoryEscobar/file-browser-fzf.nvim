@@ -37,8 +37,10 @@ function M.hijack()
         -- Ensure directory buffer is wiped when closed/replaced
         vim.bo[args.buf].bufhidden = "wipe"
 
+        -- use the buffer that triggered BufEnter: by the time this scheduled callback runs,
+        -- "%" may already be a different buffer
         require("fzf-lua-file-browser").browse({
-          cwd = vim.fn.expand("%:p:h"),
+          cwd = vim.fn.fnamemodify(bufname, ":p"),
         })
       end)
     end,

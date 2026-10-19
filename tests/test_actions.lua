@@ -45,7 +45,7 @@ actions.toggle_grouping({}, opts5)
 assert_eq(false, opts5.grouped, "toggle_grouping toggled to mixed")
 
 -- Test backspace when query is empty -> should trigger goto_parent_dir
-actions.backspace({ "  ../" }, { cwd = cwd, last_query = "" })
+actions.backspace({ "../" }, { cwd = cwd, last_query = "" })
 vim.wait(100, function() return last_browse_opts ~= nil end, 10)
 assert_eq("/workspace/project", last_browse_opts and last_browse_opts.cwd, "backspace went to parent dir")
 
@@ -76,9 +76,16 @@ vim.wait(500, function() return last_browse_opts ~= nil end, 10)
 assert_eq(false, last_browse_opts and last_browse_opts.hidden, "toggle_all toggled hidden back to false")
 assert_eq(true, last_browse_opts and last_browse_opts.gitignore, "toggle_all toggled gitignore back to true")
 
--- Test parse_entry stripping tab-separated trailing stats
-local parsed_stat_entry = utils.parse_entry("  my file with spaces.txt\t  1.5KB  2026-07-10 14:30", "/tmp")
-assert_eq("my file with spaces.txt", parsed_stat_entry.relpath, "parse_entry stripped tab-separated stats correctly")
+-- Test parse_entry stripping the fzf-lua icon prefix from a name with spaces
+local NBSP = require("fzf-lua.utils").nbsp
+local parsed_icon_entry = utils.parse_entry("\27[38;5;74m\238\152\160\27[0m" .. NBSP .. "my file with spaces.txt", "/tmp")
+assert_eq("my file with spaces.txt", parsed_icon_entry.relpath, "parse_entry stripped icon prefix correctly")
+
+-- toggle_browser must carry dirs_only into the reopened picker
+last_browse_opts = nil
+actions.toggle_browser({}, { cwd = cwd, dirs_only = false })
+vim.wait(500, function() return last_browse_opts ~= nil end, 10)
+assert_eq(true, last_browse_opts and last_browse_opts.dirs_only, "toggle_browser reopened with dirs_only")
 
 -- Test backspace action when prompt is not empty
 local bs_test_opts = { cwd = "/tmp", query = "hello" }
@@ -94,6 +101,22 @@ actions.enter({ "  src/" }, { root_cwd = "/workspace/project", path = "/works
 vim.wait(500, function() return last_browse_opts ~= nil end, 10)
 assert_eq("/workspace/project", last_browse_opts and last_browse_opts.root_cwd, "enter preserved root_cwd")
 assert_eq("/workspace/project/src", last_browse_opts and last_browse_opts.path, "enter updated path")
+
+-- Test file_split, file_vsplit, file_tabedit entering directory preserves root_cwd and updates path
+last_browse_opts = nil
+actions.file_split({ "src/" }, { root_cwd = "/workspace/project", path = "/workspace/project" })
+vim.wait(500, function() return last_browse_opts ~= nil end, 10)
+assert_eq("/workspace/project/src", last_browse_opts and last_browse_opts.path, "file_split on dir updated path")
+
+last_browse_opts = nil
+actions.file_vsplit({ "src/" }, { root_cwd = "/workspace/project", path = "/workspace/project" })
+vim.wait(500, function() return last_browse_opts ~= nil end, 10)
+assert_eq("/workspace/project/src", last_browse_opts and last_browse_opts.path, "file_vsplit on dir updated path")
+
+last_browse_opts = nil
+actions.file_tabedit({ "src/" }, { root_cwd = "/workspace/project", path = "/workspace/project" })
+vim.wait(500, function() return last_browse_opts ~= nil end, 10)
+assert_eq("/workspace/project/src", last_browse_opts and last_browse_opts.path, "file_tabedit on dir updated path")
 
 -- Test goto_parent_dir from 3 levels nested navigates up 1 level without jumping to home or root
 last_browse_opts = nil

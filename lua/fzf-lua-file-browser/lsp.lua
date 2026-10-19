@@ -2,6 +2,10 @@ local M = {}
 
 local methods = vim.lsp.protocol.Methods
 
+-- nvim 0.11 made client methods take `self` (client:request_sync); the 0.10 dot form is
+-- deprecated and goes away in 0.13
+local HAS_METHOD_CALLS = vim.fn.has("nvim-0.11") == 1
+
 local capability_names = {
   [methods.workspace_willCreateFiles] = "willCreate",
   [methods.workspace_didCreateFiles] = "didCreate",
@@ -23,8 +27,27 @@ local function matches_filter(file, filters)
   if not filters or vim.tbl_isempty(filters) then
     return true
   end
-  -- If filters exist, allow through unless explicitly rejected
-  return true
+  local uv = vim.uv or vim.loop
+  local st = uv.fs_stat(file)
+  local kind = st and (st.type == "directory" and "folder" or "file") or nil
+  local uri = vim.uri_from_fname(file)
+  for _, f in ipairs(filters) do
+    local p = f.pattern or {}
+    local scheme_ok = not f.scheme or uri:sub(1, #f.scheme + 1) == f.scheme .. ":"
+    -- `kind` is nil once a file is deleted/renamed away: don't reject on matches then
+    local kind_ok = not p.matches or not kind or p.matches == kind
+    if scheme_ok and kind_ok and p.glob then
+      local glob, path = p.glob, file
+      if p.options and p.options.ignoreCase then
+        glob, path = glob:lower(), path:lower()
+      end
+      local ok, pat = pcall(vim.glob.to_lpeg, glob)
+      if ok and pat:match(path) then
+        return true
+      end
+    end
+  end
+  return false
 end
 
 ---Filter files that match client capability filters
@@ -32,7 +55,7 @@ end
 ---@param filters table[]?
 ---@return string[]
 local function matching_files(files, filters)
-  if not filters then return files end
+  if not filters or not vim.glob then return files end
   local res = {}
   for _, f in ipairs(files) do
     if matches_filter(f, filters) then
@@ -52,7 +75,12 @@ local function will_do(method, files, param_fn)
     local filtered = matching_files(files, filters)
     if #filtered > 0 then
       local param = param_fn(filtered)
-      local status, result = pcall(client.request_sync, method, param, 1000, 0)
+      local status, result
+      if HAS_METHOD_CALLS then
+        status, result = pcall(client.request_sync, client, method, param, 1000, 0)
+      else
+        status, result = pcall(client.request_sync, method, param, 1000, 0)
+      end
       if status and result and result.result then
         vim.lsp.util.apply_workspace_edit(result.result, client.offset_encoding or "utf-16")
       end
@@ -70,7 +98,11 @@ local function did_do(method, files, param_fn)
     local filtered = matching_files(files, filters)
     if #filtered > 0 then
       local param = param_fn(filtered)
-      client.notify(method, param)
+      if HAS_METHOD_CALLS then
+        pcall(client.notify, client, method, param)
+      else
+        pcall(client.notify, method, param)
+      end
     end
   end
 end

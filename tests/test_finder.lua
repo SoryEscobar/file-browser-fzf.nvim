@@ -44,7 +44,7 @@ assert_true(finder.get_contents({ cwd = tmpdir, depth = 1 }) == cmd_flat, "get_c
 -- Test previewer entry_to_file path extraction
 local previewer = require("fzf-lua-file-browser.previewer")
 local prev_obj = previewer.Previewer:new({}, { cwd = tmpdir })
-local sample_entry = "  test.json"
+local sample_entry = "test.json"
 local extracted = prev_obj:entry_to_file(sample_entry)
 assert_true(extracted.path == utils.normalize_path(utils.join_paths(tmpdir, "test.json")), "previewer entry_to_file should extract clean path from formatted entry")
 

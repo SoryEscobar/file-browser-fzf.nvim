@@ -44,13 +44,25 @@ end
 ---Get list of parsed items from selected array
 ---@param selected string[]
 ---@param cwd string
+---@param opts table?
 ---@return table[]
-local function parse_selected(selected, cwd)
+local function parse_selected(selected, cwd, opts)
   local items = {}
   for _, sel in ipairs(selected or {}) do
-    table.insert(items, utils.parse_entry(sel, cwd))
+    table.insert(items, utils.parse_entry(sel, cwd, opts))
   end
   return items
+end
+
+-- runs as noclose (so dir navigation reuses the window): close the picker ourselves
+-- before editing/splitting, otherwise the file would open inside the fzf float
+local function close_picker_win()
+  local ok, win = pcall(function()
+    return require("fzf-lua").win.__SELF()
+  end)
+  if ok and win then
+    win:close()
+  end
 end
 
 ---Enter action (<CR>): Navigate into directory or edit file
@@ -59,12 +71,17 @@ end
 function M.enter(selected, opts)
   local browse_path = utils.get_browse_path(opts)
   local root_cwd = utils.get_root_cwd(opts)
-  if not selected or #selected == 0 then return end
+  if not selected or #selected == 0 then
+    -- nothing matched the query (or the list was still loading): stay in the browser
+    reopen(opts)
+    return
+  end
 
-  local parsed = utils.parse_entry(selected[1], browse_path)
+  local parsed = utils.parse_entry(selected[1], browse_path, opts)
   if parsed.is_dir then
     reopen(opts, { root_cwd = root_cwd, path = parsed.path, cwd = parsed.path, query = "" })
   else
+    close_picker_win()
     vim.cmd("edit " .. vim.fn.fnameescape(parsed.path))
   end
 end
@@ -75,12 +92,16 @@ end
 function M.file_split(selected, opts)
   local browse_path = utils.get_browse_path(opts)
   local root_cwd = utils.get_root_cwd(opts)
-  if not selected or #selected == 0 then return end
+  if not selected or #selected == 0 then
+    reopen(opts)
+    return
+  end
 
-  local parsed = utils.parse_entry(selected[1], browse_path)
+  local parsed = utils.parse_entry(selected[1], browse_path, opts)
   if parsed.is_dir then
     reopen(opts, { root_cwd = root_cwd, path = parsed.path, cwd = parsed.path, query = "" })
   else
+    close_picker_win()
     vim.cmd("split " .. vim.fn.fnameescape(parsed.path))
   end
 end
@@ -91,12 +112,16 @@ end
 function M.file_vsplit(selected, opts)
   local browse_path = utils.get_browse_path(opts)
   local root_cwd = utils.get_root_cwd(opts)
-  if not selected or #selected == 0 then return end
+  if not selected or #selected == 0 then
+    reopen(opts)
+    return
+  end
 
-  local parsed = utils.parse_entry(selected[1], browse_path)
+  local parsed = utils.parse_entry(selected[1], browse_path, opts)
   if parsed.is_dir then
     reopen(opts, { root_cwd = root_cwd, path = parsed.path, cwd = parsed.path, query = "" })
   else
+    close_picker_win()
     vim.cmd("vsplit " .. vim.fn.fnameescape(parsed.path))
   end
 end
@@ -107,12 +132,16 @@ end
 function M.file_tabedit(selected, opts)
   local browse_path = utils.get_browse_path(opts)
   local root_cwd = utils.get_root_cwd(opts)
-  if not selected or #selected == 0 then return end
+  if not selected or #selected == 0 then
+    reopen(opts)
+    return
+  end
 
-  local parsed = utils.parse_entry(selected[1], browse_path)
+  local parsed = utils.parse_entry(selected[1], browse_path, opts)
   if parsed.is_dir then
     reopen(opts, { root_cwd = root_cwd, path = parsed.path, cwd = parsed.path, query = "" })
   else
+    close_picker_win()
     vim.cmd("tabedit " .. vim.fn.fnameescape(parsed.path))
   end
 end
@@ -189,7 +218,7 @@ function M.change_cwd(selected, opts)
   local browse_path = utils.get_browse_path(opts)
   local target = browse_path
   if selected and #selected > 0 then
-    local parsed = utils.parse_entry(selected[1], browse_path)
+    local parsed = utils.parse_entry(selected[1], browse_path, opts)
     target = parsed.is_dir and parsed.path or utils.parent_dir(parsed.path)
   end
   local ok, err = pcall(vim.cmd.cd, target)
@@ -232,7 +261,7 @@ function M.create(_, opts)
       return
     end
     local is_dir = input:sub(-1) == "/"
-    local target = utils.normalize_path(utils.join_paths(cwd, input))
+    local target = utils.absolute(input, cwd)
     local ok, err = utils.create_path(target, is_dir)
     if not ok then
       vim.notify("Create failed: " .. tostring(err), vim.log.levels.ERROR)
@@ -256,10 +285,11 @@ function M.create_from_prompt(_, opts)
   local query = get_query(opts)
   if not query or query == "" then
     vim.notify("Prompt is empty. Type filename in prompt first.", vim.log.levels.WARN)
+    reopen(opts)
     return
   end
   local is_dir = query:sub(-1) == "/"
-  local target = utils.normalize_path(utils.join_paths(cwd, query))
+  local target = utils.absolute(query, cwd)
   local ok, err = utils.create_path(target, is_dir)
   if not ok then
     vim.notify("Create failed: " .. tostring(err), vim.log.levels.ERROR)
@@ -279,8 +309,11 @@ end
 ---@param opts table
 function M.rename(selected, opts)
   local cwd = utils.get_browse_path(opts)
-  local items = parse_selected(selected, cwd)
-  if #items == 0 then return end
+  local items = parse_selected(selected, cwd, opts)
+  if #items == 0 then
+    reopen(opts)
+    return
+  end
 
   local function rename_next(i)
     if i > #items then
@@ -298,7 +331,7 @@ function M.rename(selected, opts)
       items = { item.relpath },
     }, function(new_name)
       if new_name and new_name ~= "" and new_name ~= item.relpath then
-        local new_path = utils.normalize_path(utils.join_paths(cwd, new_name))
+        local new_path = utils.absolute(new_name, cwd)
         local ok, err = utils.rename_path(item.path, new_path)
         if not ok then
           vim.notify("Rename failed: " .. tostring(err), vim.log.levels.ERROR)
@@ -318,8 +351,11 @@ end
 ---@param opts table
 function M.move(selected, opts)
   local cwd = utils.get_browse_path(opts)
-  local items = parse_selected(selected, cwd)
-  if #items == 0 then return end
+  local items = parse_selected(selected, cwd, opts)
+  if #items == 0 then
+    reopen(opts)
+    return
+  end
 
   utils.picker_input({
     prompt = string.format("Move %d item(s) to dir> ", #items),
@@ -330,8 +366,15 @@ function M.move(selected, opts)
       reopen(opts)
       return
     end
-    local dest = utils.normalize_path(dest_dir)
-    utils.ensure_dir(dest)
+    -- relative destinations are relative to the browser dir, not Neovim's :pwd
+    local dest = utils.absolute(dest_dir, cwd)
+    local ok_dir, dir_err = utils.ensure_dir(dest)
+    if not ok_dir then
+      vim.notify(tostring(dir_err), vim.log.levels.ERROR)
+      reopen(opts)
+      return
+    end
+    local count = 0
 
     for _, item in ipairs(items) do
       if not item.is_parent then
@@ -340,10 +383,14 @@ function M.move(selected, opts)
         local ok, err = utils.rename_path(item.path, new_path)
         if not ok then
           vim.notify("Move failed for " .. name .. ": " .. tostring(err), vim.log.levels.ERROR)
+        else
+          count = count + 1
         end
       end
     end
-    vim.notify(string.format("Moved %d item(s) to %s", #items, dest), vim.log.levels.INFO)
+    if count > 0 then
+      vim.notify(string.format("Moved %d item(s) to %s", count, dest), vim.log.levels.INFO)
+    end
     reopen(opts)
   end)
 end
@@ -353,8 +400,11 @@ end
 ---@param opts table
 function M.copy(selected, opts)
   local cwd = utils.get_browse_path(opts)
-  local items = parse_selected(selected, cwd)
-  if #items == 0 then return end
+  local items = parse_selected(selected, cwd, opts)
+  if #items == 0 then
+    reopen(opts)
+    return
+  end
 
   utils.picker_input({
     prompt = string.format("Copy %d item(s) to dir> ", #items),
@@ -365,8 +415,15 @@ function M.copy(selected, opts)
       reopen(opts)
       return
     end
-    local dest = utils.normalize_path(dest_dir)
-    utils.ensure_dir(dest)
+    -- relative destinations are relative to the browser dir, not Neovim's :pwd
+    local dest = utils.absolute(dest_dir, cwd)
+    local ok_dir, dir_err = utils.ensure_dir(dest)
+    if not ok_dir then
+      vim.notify(tostring(dir_err), vim.log.levels.ERROR)
+      reopen(opts)
+      return
+    end
+    local count = 0
 
     for _, item in ipairs(items) do
       if not item.is_parent then
@@ -375,10 +432,14 @@ function M.copy(selected, opts)
         local ok, err = utils.copy_path(item.path, new_path)
         if not ok then
           vim.notify("Copy failed for " .. name .. ": " .. tostring(err), vim.log.levels.ERROR)
+        else
+          count = count + 1
         end
       end
     end
-    vim.notify(string.format("Copied %d item(s) to %s", #items, dest), vim.log.levels.INFO)
+    if count > 0 then
+      vim.notify(string.format("Copied %d item(s) to %s", count, dest), vim.log.levels.INFO)
+    end
     reopen(opts)
   end)
 end
@@ -388,8 +449,11 @@ end
 ---@param opts table
 function M.remove(selected, opts)
   local cwd = utils.get_browse_path(opts)
-  local items = parse_selected(selected, cwd)
-  if #items == 0 then return end
+  local items = parse_selected(selected, cwd, opts)
+  if #items == 0 then
+    reopen(opts)
+    return
+  end
 
   local prompt_msg = #items == 1
       and ("Delete " .. items[1].relpath .. "?")
@@ -421,7 +485,7 @@ end
 ---@param opts table
 function M.open(selected, opts)
   local cwd = utils.get_browse_path(opts)
-  local items = parse_selected(selected, cwd)
+  local items = parse_selected(selected, cwd, opts)
   for _, item in ipairs(items) do
     if vim.ui.open then
       vim.ui.open(item.path)
@@ -445,6 +509,10 @@ end
 ---@param _ string[]
 ---@param opts table
 function M.toggle_gitignore(_, opts)
+  if vim.fn.executable("fd") == 0 and vim.fn.executable("fdfind") == 0 then
+    -- the POSIX find fallback has no notion of .gitignore
+    vim.notify("fzf-lua-file-browser: .gitignore filtering needs fd", vim.log.levels.WARN)
+  end
   opts.gitignore = not (opts.gitignore ~= false)
   reopen(opts, { gitignore = opts.gitignore })
 end
@@ -471,7 +539,7 @@ end
 ---@param opts table
 function M.toggle_browser(_, opts)
   opts.dirs_only = not opts.dirs_only
-  reopen(opts)
+  reopen(opts, { dirs_only = opts.dirs_only })
 end
 
 ---Toggle all files/folders ignoring gitignore (if supported)
@@ -522,7 +590,7 @@ function M.keymaps_help(_, opts)
     "ctrl-v           │ Open selected file in vertical split",
     "ctrl-t           │ Open selected file in new tab",
     "ctrl-h           │ Toggle hidden files/folders",
-    "ctrl-i           │ Toggle gitignore filtering",
+    "alt-i            │ Toggle gitignore filtering",
     "ctrl-l           │ Toggle recursive directory scanning",
     "ctrl-g           │ Toggle grouping directories first",
     "ctrl-s           │ Toggle all filters (show all hidden/ignored)",
@@ -533,6 +601,8 @@ function M.keymaps_help(_, opts)
     "alt-enter        │ Create file/directory from prompt text",
     "<CR> / <Right>   │ Open file / enter directory",
     "<Left>           │ Go to parent directory",
+    "<BS> (empty)     │ Go to parent directory",
+    "<Tab>            │ Toggle multi-selection",
   }
 
   local has_ui = #vim.api.nvim_list_uis() > 0
@@ -549,6 +619,8 @@ function M.keymaps_help(_, opts)
 
   fzf.fzf_exec(items, {
     prompt = "Keybinds Help> ",
+    -- the "hide" profile replaces esc with its own action, which would skip our reopen
+    no_hide = true,
     winopts = {
       title = " fzf-lua-file-browser Shortcuts ",
       title_pos = "center",

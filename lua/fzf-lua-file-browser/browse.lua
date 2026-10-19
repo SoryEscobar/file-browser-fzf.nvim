@@ -31,11 +31,51 @@ local function normalize_key(k)
   return s
 end
 
+-- Actions that re-render the browser in place. They must run with noclose+reuse, whether
+-- they come from the defaults or from user config: otherwise fzf-lua tears the window down
+-- and rebuilds it on every step (visible flicker, leaked preview buffers).
+local INPLACE = {
+  [actions.enter] = true,
+  [actions.file_split] = true,
+  [actions.file_vsplit] = true,
+  [actions.file_tabedit] = true,
+  [actions.goto_parent_dir] = true,
+  [actions.goto_home_dir] = true,
+  [actions.goto_cwd] = true,
+  [actions.change_cwd] = true,
+  [actions.toggle_hidden] = true,
+  [actions.toggle_gitignore] = true,
+  [actions.toggle_depth] = true,
+  [actions.toggle_grouping] = true,
+  [actions.toggle_all] = true,
+  [actions.toggle_browser] = true,
+  [actions.keymaps_help] = true,
+  [actions.backspace] = true,
+}
+
 local function resolve_action_val(v)
   if type(v) == "string" and actions[v] then
-    return actions[v]
+    v = actions[v]
+  end
+  if type(v) == "function" and INPLACE[v] then
+    return wrap_action(v)
   end
   return v
+end
+
+---fzf >= 0.59 is needed for `trigger()` (empty-query backspace => parent dir)
+local fzf_has_trigger
+local function has_fzf_trigger()
+  if fzf_has_trigger == nil then
+    fzf_has_trigger = false
+    local ok, out = pcall(vim.fn.system, { "fzf", "--version" })
+    local maj, min = (ok and out or ""):match("^(%d+)%.(%d+)")
+    if maj then
+      maj, min = tonumber(maj), tonumber(min)
+      fzf_has_trigger = maj > 0 or min >= 59
+    end
+  end
+  return fzf_has_trigger
 end
 
 ---Get default actions table for fzf-lua picker
@@ -45,8 +85,8 @@ end
 local function get_actions(custom_actions, opts)
   opts = opts or {}
   local defaults = {
-    ["default"]     = actions.enter,
-    ["right"]       = actions.enter,
+    ["default"]     = wrap_action(actions.enter),
+    ["right"]       = wrap_action(actions.enter),
     ["left"]        = wrap_action(actions.goto_parent_dir),
     ["ctrl-a"]      = actions.create,
     ["alt-c"]       = actions.create,
@@ -58,15 +98,16 @@ local function get_actions(custom_actions, opts)
     ["alt-y"]       = actions.copy,
     ["ctrl-j"]      = actions.move,
     ["alt-m"]       = actions.move,
-    ["ctrl-x"]      = actions.file_split,
-    ["ctrl-v"]      = actions.file_vsplit,
-    ["ctrl-t"]      = actions.file_tabedit,
+    ["ctrl-x"]      = wrap_action(actions.file_split),
+    ["ctrl-v"]      = wrap_action(actions.file_vsplit),
+    ["ctrl-t"]      = wrap_action(actions.file_tabedit),
     ["alt-d"]       = actions.remove,
     ["ctrl-w"]      = wrap_action(actions.change_cwd),
     ["ctrl-b"]      = wrap_action(actions.goto_cwd),
     ["ctrl-e"]      = wrap_action(actions.goto_home_dir),
     ["ctrl-h"]      = wrap_action(actions.toggle_hidden),
-    ["ctrl-i"]      = wrap_action(actions.toggle_gitignore),
+    -- not ctrl-i: terminals send ctrl-i as Tab, which would kill multi-select toggling
+    ["alt-i"]       = wrap_action(actions.toggle_gitignore),
     ["ctrl-l"]      = wrap_action(actions.toggle_depth),
     ["ctrl-g"]      = wrap_action(actions.toggle_grouping),
     ["ctrl-s"]      = wrap_action(actions.toggle_all),
@@ -105,7 +146,8 @@ local function get_actions(custom_actions, opts)
     end
   end
 
-  return vim.tbl_deep_extend("force", defaults, normalized)
+  -- shallow: a user's `{ fn = f }` must replace a wrapped default, not inherit its noclose/reuse
+  return vim.tbl_extend("force", defaults, normalized)
 end
 
 ---Format prompt string
@@ -133,6 +175,9 @@ function M.browse(opts)
   if not opts.__browse_opts then
     local pristine = vim.deepcopy(opts)
     pristine.__browse_opts = nil
+    -- keep per-call actions so they survive reopen (toggles, navigation); the resolved
+    -- `actions` table itself holds wrapped functions and is rebuilt every time
+    pristine.__user_actions = vim.tbl_extend("force", opts.__user_actions or {}, opts.actions or {})
     pristine.actions = nil
     pristine.fzf_opts = nil
     pristine.previewer = nil
@@ -141,18 +186,35 @@ function M.browse(opts)
     opts.__browse_opts = pristine
   end
 
-  local session_cwd = utils.normalize_path(opts.root_cwd or opts._root_cwd or opts.cwd or vim.fn.getcwd())
-  local browse_path = opts.path
-  if not browse_path then
-    if not opts.cwd and not opts.root_cwd and vim.fn.expand("%:p") ~= "" then
-      local buf_dir = vim.fn.expand("%:p:h")
-      if vim.fn.isdirectory(buf_dir) == 1 then
-        browse_path = buf_dir
-      end
+  local default_cwd = vim.fn.getcwd()
+  if not opts.cwd and not opts.root_cwd and not opts.path and vim.fn.expand("%:p") ~= "" then
+    local buf_dir = vim.fn.expand("%:p:h")
+    if vim.fn.isdirectory(buf_dir) == 1 then
+      default_cwd = buf_dir
     end
-    browse_path = browse_path or session_cwd
   end
-  browse_path = utils.normalize_path(browse_path)
+
+  -- Always work with an absolute, existing directory: relative/"~" paths break parent
+  -- navigation and make create/move resolve against :pwd, and fzf-lua silently falls back
+  -- to :pwd for a bad cwd while header/actions would keep the bogus one.
+  local raw_session = opts.root_cwd or opts._root_cwd or opts.cwd
+  if type(raw_session) ~= "string" or raw_session == "" or raw_session:match("^%a[%w+.-]+://") then
+    raw_session = vim.fn.getcwd()
+  end
+  local session_cwd = utils.absolute(raw_session)
+  if not utils.is_dir(session_cwd) then
+    session_cwd = utils.normalize_path(vim.fn.getcwd())
+  end
+
+  local raw_browse = opts.path or opts.cwd
+  if type(raw_browse) ~= "string" or raw_browse == "" or raw_browse:match("^%a[%w+.-]+://") then
+    raw_browse = default_cwd
+  end
+  local browse_path = utils.absolute(raw_browse)
+  if not utils.is_dir(browse_path) then
+    vim.notify("fzf-lua-file-browser: not a directory: " .. browse_path, vim.log.levels.WARN)
+    browse_path = session_cwd
+  end
 
   opts.root_cwd = session_cwd
   opts._root_cwd = session_cwd
@@ -165,9 +227,12 @@ function M.browse(opts)
   local display_cwd = vim.fn.fnamemodify(session_cwd, ":~")
   opts.fzf_opts = vim.tbl_deep_extend("force", {
     ["--header"] = string.format("   CWD: %s  │  Folder: %s ", display_cwd, rel_path),
+    -- batch rename/copy/move/remove all rely on Tab multi-select
+    ["--multi"] = true,
   }, opts.fzf_opts or {})
 
-  opts.actions = get_actions(opts.actions, opts)
+  local base_user_actions = opts.__browse_opts and opts.__browse_opts.__user_actions or opts.__user_actions or {}
+  opts.actions = get_actions(vim.tbl_extend("force", opts.actions or {}, base_user_actions), opts)
   if not opts.previewer or opts.previewer == previewer.Previewer then
     opts.previewer = {
       _ctor = function()
@@ -241,11 +306,32 @@ function M.browse(opts)
     end
   end
 
+  -- Backspace: delete a char while the prompt has text, go to the parent dir when it is empty.
+  -- Done inside fzf (transform + trigger) so typing never re-renders the picker; `left` is
+  -- the parent-dir key. Skipped if the user unbound `left` or fzf is too old for trigger().
+  -- The transform is sh syntax, so not on Windows (fzf runs it through cmd.exe there).
+  if opts.actions and opts.actions["left"] and not utils.__IS_WINDOWS and has_fzf_trigger() then
+    opts.keymap.fzf["bspace"] = [[transform:[ -n "$FZF_QUERY" ] && echo backward-delete-char || echo "trigger(left)"]]
+  end
+
   -- Configure fzf-lua entry transformation for fast asynchronous external command output matching fzf-lua files
   opts._type = "file"
-  opts.file_icons = opts.file_icons ~= false
-  opts.color_icons = opts.color_icons ~= false
+  -- leave fzf-lua's own defaults alone: forcing `true` makes it warn on every open when
+  -- nvim-web-devicons isn't installed (its default `1` silently falls back)
+  if opts.file_icons == nil then
+    opts.file_icons = 1
+  end
+  if opts.color_icons == nil then
+    opts.color_icons = true
+  end
   opts.strip_cwd_prefix = true
+
+  -- Opt out of fzf-lua's "hide" profile: it turns every closing action into hide-then-run,
+  -- and when a sub-picker (create/rename/confirm) then replaces the hidden browser, fzf-lua
+  -- drops its preview buffers without deleting them. Trade-off: Esc closes rather than hides.
+  if opts.no_hide == nil then
+    opts.no_hide = true
+  end
 
   local cmd = finder.get_cmd(opts)
   return fzf.fzf_exec(cmd, opts)

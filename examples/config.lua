@@ -51,7 +51,7 @@ return {
 
       -- Filtering & toggles
       ["<C-h>"] = "toggle_hidden",
-      ["<C-i>"] = "toggle_gitignore",
+      ["<M-i>"] = "toggle_gitignore", -- not <C-i>: terminals send it as <Tab>
       ["<C-l>"] = "toggle_depth",
       ["<C-s>"] = "toggle_all",
     },
